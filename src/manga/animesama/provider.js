@@ -23,8 +23,11 @@ class Provider {
     }
 
     getWorkTitle(html) {
-        const match = html.match(/<[^>]*id=["']titreOeuvre["'][^>]*>\s*([^<]*)/i);
-        return match?.[1]?.trim() || "";
+        // The oeuvre param the scan API expects is the raw display title
+        // (exact spacing/casing as shown on the page), not the URL slug.
+        // e.g. title "Blue Lock  " (with trailing spaces) -> oeuvre=Blue%20Lock%20%20
+        const match = html.match(/<[^>]*id=["']titreOeuvre["'][^>]*>([^<]*)/i);
+        return match?.[1] ?? "";
     }
 
     async search(opts) {
@@ -114,27 +117,7 @@ class Provider {
                 if (!subResponse.ok) return [];
                 const subHtml = await subResponse.text();
 
-                // Look for the main page link through the grayscale image cover
-                let mainPageLink = null;
-                const mainPageLinkMatch = subHtml.match(/<a[^>]*href=["']([^"']+)["'][^>]*>[\s\S]*?<img[^>]*id=["']imgOeuvre["'][^>]*class=["'][^"']*grayscale/i);
-
-                if (mainPageLinkMatch?.[1]) {
-                    try {
-                        mainPageLink = new URL(mainPageLinkMatch[1], subMangaUrl).href;
-                    } catch (e) {}
-                }
-
-                // If main page link exists, fetch it and extract the raw display title
-                let title = "";
-                if (mainPageLink) {
-                    try {
-                        const mainRes = await fetch(mainPageLink, { headers: this.getHeaders(subMangaUrl) });
-                        if (mainRes.ok) title = this.getWorkTitle(await mainRes.text());
-                    } catch (e) {}
-                }
-
-                // Fallbacks if title is still blank
-                if (!title) title = this.getWorkTitle(subHtml);
+                const title = this.getWorkTitle(subHtml);
                 if (!title.trim()) return [];
 
                 // Fetch chapter count map: { "1": numPages, "2": numPages, ... }
