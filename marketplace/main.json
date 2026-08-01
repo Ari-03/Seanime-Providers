@@ -538,5 +538,17 @@
     "lang": "en",
     "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/comix.png",
     "website": ""
+  },
+  {
+    "id": "default-torrent-filters",
+    "name": "Default Torrent Filters",
+    "description": "Automatically applies your preferred filters (Multi Subs, Dubbed, video/audio codecs) to torrent search results",
+    "manifestURI": "https://raw.githubusercontent.com/Ari-03/Seanime-Providers/main/src/plugins/default-torrent-filters/manifest.json",
+    "author": "Ari-03",
+    "type": "plugin",
+    "language": "typescript",
+    "lang": "multi",
+    "icon": "",
+    "website": ""
   }
 ]
