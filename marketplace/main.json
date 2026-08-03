@@ -136,7 +136,7 @@
     "name": "AnimeSama (Manga)",
     "description": "AnimeSama is a manga provider for Seanime",
     "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/manga/animesama/manifest.json",
-    "author": "Pal",
+    "author": "Pal & Rafou376",
     "type": "manga-provider",
     "language": "javascript",
     "lang": "fr",
