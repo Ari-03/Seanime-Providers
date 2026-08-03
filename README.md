@@ -108,12 +108,9 @@ Or
 
 ### Contributors
 
-| [<img src="https://avatars.githubusercontent.com/u/64171580?v=4" width="64">](https://github.com/Ari-03) |
-|:---:|
-| [Ari-03](https://github.com/Ari-03) |
-| [<img src="https://avatars.githubusercontent.com/u/108695858?v=4" width="64">](https://github.com/Rafou376) |
-|:---:|
-| [Rafou376](https://github.com/Rafou376) |
+| [<img src="https://avatars.githubusercontent.com/u/64171580?v=4" width="64">](https://github.com/Ari-03) | [<img src="https://avatars.githubusercontent.com/u/108695858?v=4" width="64">](https://github.com/Rafou376) |
+|:---:|:---:|
+| [Ari-03](https://github.com/Ari-03) | [Rafou376](https://github.com/Rafou376) |
 
 ---
 
