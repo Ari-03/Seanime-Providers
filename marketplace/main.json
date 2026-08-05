@@ -577,7 +577,7 @@
   },
   {
     "id": "ui-translation",
-    "name": "Translates Seanime UI into +10 different languages.",
+    "name": "UI Translation",
     "manifestURI": "https://raw.githubusercontent.com/Ari-03/Seanime-Providers/main/src/plugins/UI-Translation/manifest.json",
     "author": "Pal & jabifx",
     "type": "plugin",
