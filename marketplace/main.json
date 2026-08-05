@@ -572,7 +572,7 @@
     "type": "plugin",
     "language": "typescript",
     "lang": "multi",
-    "icon": "",
+    "icon": "https://raw.githubusercontent.com/pal-droid/Seanime-Providers/main/public/oneko.png",
     "website": ""
   },
   {
