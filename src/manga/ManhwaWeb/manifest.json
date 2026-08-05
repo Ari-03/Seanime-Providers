@@ -1,0 +1,13 @@
+{
+  "id": "manhwaweb",
+  "name": "ManhwaWeb",
+  "description": "Spanish manga and manhwa provider.",
+  "manifestURI": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/src/manga/ManhwaWeb/manifest.json",
+  "version": "1.0.1",
+  "author": "jabifx & Pal",
+  "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/manhwaweb.png",
+  "type": "manga-provider",
+  "language": "typescript",
+  "lang": "es",
+  "payloadURI": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/src/manga/ManhwaWeb/index.ts"
+}
