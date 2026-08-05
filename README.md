@@ -100,12 +100,12 @@ Or
 
 * [Seanime](https://github.com/5rahim/seanime) made by [5rahim](https://github.com/5rahim)
 
-* [kRYstall9](https://github.com/kRYstall9) *(For the source code of [MangaWorldAdult](https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/manga/MangaWorldAdult/manifest.json), [HentaiWorld](https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/hentaiworld/manifest.json), and [HentaiSaturn](https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/hentaisaturn/manifest.json))*
+* [kRYstall9](https://github.com/kRYstall9) *(For the source code of [MangaWorldAdult](https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/manga/MangaWorldAdult/manifest.json), [HentaiWorld](https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/hentaiworld/manifest.json), and [HentaiSaturn](https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/hentaisaturn/manifest.json)*
 
 
 * [SyntaxSama / FracturedSora](https://github.com/syntaxsama) *(For the source code of the visual marketplace; Original owner of the Anime News, Always Advanced Search, Cookie clicker, Anti-Seeding plugins and Animepahe extension)*
 
-* [Jabi.fx](https://github.com/9lfx/) *Original author of the [ManhwaWeb](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/manga/ManhwaWeb/manifest.json), [Oneko](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/plugins/oneko/manifest.json), [UI-Translation](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/plugins/UI-Translation/manifest.json), [AnimeAV1](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/anime/AnimeAV1/manifest.json) extensions & plugins.*
+* [Jabi.fx](https://github.com/9lfx/) *(Original author of the [ManhwaWeb](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/manga/ManhwaWeb/manifest.json), [Oneko](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/plugins/oneko/manifest.json), [UI-Translation](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/plugins/UI-Translation/manifest.json), [AnimeAV1](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/anime/AnimeAV1/manifest.json) extensions & plugins.)*
 
 * [Dantotsu](https://discord.gg/MSJvfJzS7R) *(The Anilist activity plugin is inspired by Dantotsu's stories feature.)*
 
