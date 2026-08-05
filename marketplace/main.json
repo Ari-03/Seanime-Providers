@@ -12,6 +12,18 @@
     "website": ""
   },
   {
+    "id": "manhwaweb",
+    "name": "manhwaweb",
+    "description": "Manhwaweb is a spanish manga provider for Seanime",
+    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/manga/ManhwaWeb/manifest.json",
+    "author": "Pal & jabifx",
+    "type": "manga-provider",
+    "language": "javascript",
+    "lang": "es",
+    "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/manhwaweb.png",
+    "website": ""
+  },
+  {
     "id": "donghuastream",
     "name": "DonghuaStream",
     "description": "DonghuaStream is an english donghua sub provider for Seanime",
@@ -93,6 +105,18 @@
     "language": "javascript",
     "lang": "en",
     "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/anidao.png",
+    "website": ""
+  },
+  {
+    "id": "animeAV1",
+    "name": "AnimeAV1",
+    "description": "AnimeAV1 is an Anime provider for spanish anime for Seanime",
+    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/AnimeAV1/manifest.json",
+    "author": "Pal & jabifx",
+    "type": "onlinestream-provider",
+    "language": "javascript",
+    "lang": "es",
+    "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/animeav1.png",
     "website": ""
   },
   {
@@ -533,6 +557,29 @@
     "description": "Automatically applies your preferred filters (Multi Subs, Dubbed, video/audio codecs) to torrent search results",
     "manifestURI": "https://raw.githubusercontent.com/Ari-03/Seanime-Providers/main/src/plugins/default-torrent-filters/manifest.json",
     "author": "Ari-03",
+    "type": "plugin",
+    "language": "typescript",
+    "lang": "multi",
+    "icon": "",
+    "website": ""
+  },
+  {
+    "id": "oneko",
+    "name": "OnekoJs",
+    "description": "Implements the famous Oneko.js script on seanime.",
+    "manifestURI": "https://raw.githubusercontent.com/pal-droid/Seanime-Providers/main/src/plugins/oneko/manifest.json",
+    "author": "Pal & jabifx",
+    "type": "plugin",
+    "language": "typescript",
+    "lang": "multi",
+    "icon": "",
+    "website": ""
+  },
+  {
+    "id": "ui-translation",
+    "name": "Translates Seanime UI into +10 different languages.",
+    "manifestURI": "https://raw.githubusercontent.com/Ari-03/Seanime-Providers/main/src/plugins/UI-Translation/manifest.json",
+    "author": "Pal & jabifx",
     "type": "plugin",
     "language": "typescript",
     "lang": "multi",
