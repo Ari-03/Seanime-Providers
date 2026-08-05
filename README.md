@@ -100,7 +100,7 @@ Or
 
 * [Seanime](https://github.com/5rahim/seanime) made by [5rahim](https://github.com/5rahim)
 
-* [kRYstall9](https://github.com/kRYstall9) *(For the source code of [MangaWorldAdult](https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/manga/MangaWorldAdult/manifest.json), [HentaiWorld](https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/hentaiworld/manifest.json), and [HentaiSaturn](https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/hentaisaturn/manifest.json)*
+* [kRYstall9](https://github.com/kRYstall9) *(For the source code of [MangaWorldAdult](https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/manga/MangaWorldAdult/manifest.json), [HentaiWorld](https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/hentaiworld/manifest.json), and [HentaiSaturn](https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/hentaisaturn/manifest.json))*
 
 
 * [SyntaxSama / FracturedSora](https://github.com/syntaxsama) *(For the source code of the visual marketplace; Original owner of the Anime News, Always Advanced Search, Cookie clicker, Anti-Seeding plugins and Animepahe extension)*
