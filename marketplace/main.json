@@ -609,17 +609,5 @@
     "lang": "multi",
     "icon": "https://raw.githubusercontent.com/Seanime-contributions/Seanime-Providers/refs/heads/main/public/anilist.ico",
     "website": ""
-  },
-  {
-    "id": "external-extensions",
-    "name": "External Extensions Bridge",
-    "description": "A plugin for integrating external extensions of other applications.",
-    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/refs/heads/main/src/plugins/external-extensions/manifest.json",
-    "author": "Pal",
-    "type": "plugin",
-    "language": "javascript",
-    "lang": "MULTI",
-    "icon": "",
-    "website": ""
   }
 ]
