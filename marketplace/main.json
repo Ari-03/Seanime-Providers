@@ -96,18 +96,6 @@
     "website": ""
   },
   {
-    "id": "anidao",
-    "name": "AniDao",
-    "description": "AniDao is an Anime provider for english sub & dub for Seanime",
-    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/anidao/manifest.json",
-    "author": "Pal",
-    "type": "onlinestream-provider",
-    "language": "javascript",
-    "lang": "en",
-    "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/anidao.png",
-    "website": ""
-  },
-  {
     "id": "animeAV1",
     "name": "AnimeAV1",
     "description": "AnimeAV1 is an Anime provider for spanish anime for Seanime",
@@ -252,18 +240,6 @@
     "website": ""
   },
   {
-    "id": "animepahe",
-    "name": "AnimePahe",
-    "description": "AnimePahe is an online streaming provider for english sub/dubs.",
-    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/animepahe/manifest.json",
-    "author": "ItsSkaiya & Pal",
-    "type": "onlinestream-provider",
-    "language": "typescript",
-    "lang": "en",
-    "icon": "https://raw.githubusercontent.com/Pal-droid/seanime-marketplace/refs/heads/main/animepahe.png",
-    "website": ""
-  },
-  {
     "id": "animegg",
     "name": "AnimeGG",
     "description": "AnimeGG is an online streaming provider for english sub/dubs.",
@@ -396,18 +372,6 @@
     "website": ""
   },
   {
-    "id": "scanita",
-    "name": "Scanita",
-    "description": "Scanita is a manga provider for Seanime",
-    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/refs/heads/main/src/manga/scanita/manifest.json",
-    "author": "Pal",
-    "type": "manga-provider",
-    "language": "javascript",
-    "lang": "it",
-    "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/scanita.png",
-    "website": ""
-  },
-  {
     "id": "LN-reader",
     "name": "Light Novel Reader",
     "description": "A simple plugin for reading Light Novels inside Seanime.",
@@ -453,18 +417,6 @@
     "language": "typescript",
     "lang": "EN",
     "icon": "https://raw.githubusercontent.com/Pal-droid/aninewsnet-seanime/refs/heads/main/animenewsnetwork.png",
-    "website": ""
-  },
-  {
-    "id": "always-advanced-search",
-    "name": "Always Advanced Search",
-    "description": "Always use advanced search instead of the basic search feature.",
-    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/refs/heads/main/src/plugins/advanced-search/manifest.json",
-    "author": "SyntaxSama & Pal",
-    "type": "plugin",
-    "language": "typescript",
-    "lang": "EN",
-    "icon": "https://raw.githubusercontent.com/Pal-droid/advanced-search/refs/heads/main/2015046.png",
     "website": ""
   },
   {
@@ -537,18 +489,6 @@
     "language": "javascript",
     "lang": "id",
     "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/komikcast.png",
-    "website": ""
-  },
-  {
-    "id": "comix",
-    "name": "Comix",
-    "description": "Comix is a manga provider for Seanime",
-    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-providers/refs/heads/main/src/manga/comix/manifest.json",
-    "author": "Pal & Ari-03",
-    "type": "manga-provider",
-    "language": "javascript",
-    "lang": "en",
-    "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/comix.png",
     "website": ""
   },
   {
