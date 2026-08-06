@@ -1,12 +1,12 @@
 {
   "id": "animeav1",
   "name": "AnimeAV1",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "manifestURI": "https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/anime/AnimeAV1/manifest.json",
   "language": "typescript",
   "type": "onlinestream-provider",
   "description": "Online streaming provider with hard subs and dubs in Spanish.",
-  "author": "jabifx & Pal",
+  "author": "jabifx, yerasuu & Pal",
   "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/main/public/animeav1.png",
   "lang": "es",
   "payloadURI": "https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/anime/AnimeAV1/main.ts"
