@@ -46,7 +46,7 @@
     "lang": "ru",
     "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/mangahub.ico",
     "website": ""
-  },  
+  },
   {
     "id": "mangacloud",
     "name": "MangaCloud",
@@ -142,7 +142,7 @@
     "lang": "en",
     "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/atsumaru.ico",
     "website": ""
-  }, 
+  },
   {
     "id": "animesamamanga",
     "name": "AnimeSama (Manga)",
@@ -166,7 +166,7 @@
     "lang": "fr",
     "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/lelmanga.png",
     "website": ""
-  }, 
+  },
   {
     "id": "taiyo",
     "name": "Taiyo",
@@ -583,6 +583,42 @@
     "type": "plugin",
     "language": "typescript",
     "lang": "multi",
+    "icon": "",
+    "website": ""
+  },
+  {
+    "id": "anibd",
+    "name": "AniBD",
+    "description": "AniBD is an online streaming provider for subbed BD anime in english",
+    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/anibd/manifest.json",
+    "author": "Pal",
+    "type": "onlinestream-provider",
+    "language": "javascript",
+    "lang": "en",
+    "icon": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/public/anibd.jpg",
+    "website": ""
+  },
+  {
+    "id": "anilist-notifications",
+    "name": "AniList Notifications",
+    "description": "View your AniList notifications.",
+    "manifestURI": "https://raw.githubusercontent.com/Seanime-contributions/Seanime-Providers/refs/heads/main/src/plugins/anilist-notifications/manifest.json",
+    "author": "Pal",
+    "type": "plugin",
+    "language": "typescript",
+    "lang": "multi",
+    "icon": "https://raw.githubusercontent.com/Seanime-contributions/Seanime-Providers/refs/heads/main/public/anilist.ico",
+    "website": ""
+  },
+  {
+    "id": "external-extensions",
+    "name": "External Extensions Bridge",
+    "description": "A plugin for integrating external extensions of other applications.",
+    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/refs/heads/main/src/plugins/external-extensions/manifest.json",
+    "author": "Pal",
+    "type": "plugin",
+    "language": "javascript",
+    "lang": "MULTI",
     "icon": "",
     "website": ""
   }
