@@ -112,6 +112,14 @@ const SEARCH_CACHE_MS = 5 * 60 * 1000;
 // Comfortably above a refused connection, far below a hung one.
 const RETRY_BUDGET_MS = 8000;
 
+// Past this, a host is not being slow, it has stopped answering: mp4upload
+// serves in well under a second or not at all. Well clear of a normal reply.
+const SLOW_HOST_MS = 6000;
+
+// Written down when mp4upload stalls, so it is passed over while this is set
+// rather than costing another 35s on the next episode. Shares SEARCH_CACHE_MS.
+const MP4UPLOAD_DOWN_KEY = "av1:mp4upload:down";
+
 // Words that place an entry in a series without naming it, so a title made of
 // nothing else carries no signal about which show it belongs to.
 const GENERIC_WORDS: { [word: string]: boolean } = {
@@ -162,14 +170,14 @@ class Provider {
     private baseUrl = "https://animeav1.com";
 
     getSettings(): Settings {
-        // Seanime asks for EVERY server listed here before it returns any
-        // source, so one slow server delays every playback. mp4upload usually
-        // answers in under a second but stalls for ~32s now and then, and
-        // fetch's `timeout` never applies (Seanime reads it with .(int) while
-        // goja exports numbers as int64), so that stall eats the whole startup.
-        // Left out of the list; the extractor below still works if re-enabled.
+        // Seanime asks for every server listed here before it hands back any
+        // source, so both are resolved even when only one gets watched. HLS
+        // comes first as the one that always works; mp4upload is the fallback
+        // for when the player's host is unreachable, and it looks after its own
+        // stalls, so a bad spell on its side costs the fallback rather than the
+        // episode.
         return {
-            episodeServers: ["HLS"],
+            episodeServers: ["HLS", "MP4Upload"],
             supportsDub: true,
         };
     }
@@ -703,30 +711,62 @@ class Provider {
         }
     }
 
-    /** MP4Upload leaves the direct mp4 in the embed HTML, unobfuscated. */
+    /**
+     * MP4Upload leaves the direct mp4 in the embed HTML, unobfuscated.
+     *
+     * Seanime asks for every declared server before it hands back any source,
+     * so this runs on the way to playing an episode even when HLS is the one
+     * being watched. mp4upload answers in well under a second almost always,
+     * but now and then it stops answering and holds the request for the 35s
+     * fetch allows, which is felt as the episode taking 35s to start.
+     *
+     * Nothing here can shorten that one stall, so the point is to not pay it
+     * twice: a stall is written down and mp4upload is passed over for the next
+     * few minutes. Seanime keeps whichever servers did answer, so skipping it
+     * costs the fallback and nothing else.
+     */
     private async extractMp4Upload(embedUrl: string): Promise<VideoSource | null> {
-        // No retries: when mp4upload stalls, each attempt costs 35s.
-        const res = await this.fetchWithRetry(embedUrl, 0, MP4UPLOAD_HEADERS);
-        if (!res.ok) return null;
+        if (this.remember<boolean>(MP4UPLOAD_DOWN_KEY)) return null;
 
-        const match = res.text().match(/src:\s*"([^"]+\.mp4[^"]*)"/);
-        if (!match) return null;
+        const started = Date.now();
 
-        return {
-            url: match[1],
-            type: "mp4",
-            quality: "auto",
-            subtitles: [],
-        };
+        try {
+            // No retries: when mp4upload stalls, each attempt costs 35s.
+            const res = await this.fetchWithRetry(embedUrl, 0, MP4UPLOAD_HEADERS);
+
+            if (Date.now() - started >= SLOW_HOST_MS) this.keep(MP4UPLOAD_DOWN_KEY, true);
+            if (!res.ok) return null;
+
+            const match = res.text().match(/src:\s*"([^"]+\.mp4[^"]*)"/);
+            if (!match) return null;
+
+            return {
+                url: match[1],
+                type: "mp4",
+                quality: "auto",
+                subtitles: [],
+            };
+        } catch (err) {
+            this.keep(MP4UPLOAD_DOWN_KEY, true);
+            return null;
+        }
     }
 
     /**
-     * Which audio an episode page carries, as the keys of its embeds object:
-     * ["SUB"] on its own, or ["SUB", "DUB"] where a dub exists.
+     * An episode page's embeds table, with the array its indices point into.
+     *
+     * Seanime asks for one server at a time and every one of them needs this
+     * same page, so fetching it once and keeping it briefly is the difference
+     * between one request per episode and one per server.
      */
-    private async audioTracks(slug: string, number: number): Promise<string[]> {
+    private async episodeEmbeds(slug: string, number: number): Promise<{ data: any[]; embeds: any } | null> {
+        const key = `av1:ep:${slug}:${number}`;
+
+        const cached = this.remember<{ data: any[]; embeds: any }>(key);
+        if (cached) return cached;
+
         const res = await this.fetchWithRetry(`${this.baseUrl}/media/${slug}/${number}/__data.json`);
-        if (!res.ok) return [];
+        if (!res.ok) return null;
 
         const json = res.json();
 
@@ -738,12 +778,22 @@ class Provider {
             );
 
             if (root) {
-                const embeds = node.data[root.embeds];
-                return embeds ? Object.keys(embeds) : [];
+                const found = { data: node.data, embeds: node.data[root.embeds] || {} };
+                this.keep(key, found);
+                return found;
             }
         }
 
-        return [];
+        return null;
+    }
+
+    /**
+     * Which audio an episode page carries, as the keys of its embeds object:
+     * ["SUB"] on its own, or ["SUB", "DUB"] where a dub exists.
+     */
+    private async audioTracks(slug: string, number: number): Promise<string[]> {
+        const found = await this.episodeEmbeds(slug, number);
+        return found ? Object.keys(found.embeds) : [];
     }
 
     /**
@@ -783,34 +833,12 @@ class Provider {
             throw new Error("ID inválido");
         }
 
-        const url = `${this.baseUrl}/media/${slug}/${number}/__data.json`;
-
         try {
-            const res = await this.fetchWithRetry(url);
-            if (!res.ok) throw new Error("Error obteniendo datos");
+            const found = await this.episodeEmbeds(slug, number);
+            if (!found) throw new Error("No se encontraron servidores");
 
-            const json = res.json();
-
-            let data: any[] | null = null;
-            let root: any = null;
-
-            for (const node of json?.nodes || []) {
-                if (!node?.data) continue;
-
-                const found = node.data.find(
-                    (item: any) => item && typeof item === "object" && "embeds" in item
-                );
-
-                if (found) {
-                    data = node.data;
-                    root = found;
-                    break;
-                }
-            }
-
-            if (!data || !root) throw new Error("No se encontraron servidores");
-
-            const embeds = data[root.embeds] || {};
+            const data = found.data;
+            const embeds = found.embeds;
             const category = type.toUpperCase();
 
             // A dub can also stop partway through a run, so fall back per
