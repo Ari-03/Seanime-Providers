@@ -1,3 +1,4 @@
+
 /// <reference path="./core.d.ts" />  
 
 function init() {  
@@ -177,6 +178,10 @@ function init() {
                 .stories-container { display: flex; overflow-x: auto; gap: 20px; padding: 0 16px 5px 16px; scrollbar-width: none; }
                 .stories-container::-webkit-scrollbar { display: none; } 
                 .story-item { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; cursor: pointer; text-align: center; max-width: 65px; transition: transform 0.2s; }
+                .story-item.current-user.has-divider { position: relative; margin-right: 20px; }
+                .story-item.current-user.has-divider::after { content: ''; position: absolute; top: 0; bottom: 20px; right: -20px; width: 1px; background: rgba(156, 163, 175, 0.65); }
+                .story-item.empty-self .story-ring { display: none; }
+                .story-item.empty-self { justify-content: flex-end; min-height: 64px; }
                 .story-ring { width: 64px; height: 64px; padding: 3px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; transition: transform 0.2s; }
                 .story-image { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid #1F2937; }
                 /* GIF-specific styles */
@@ -262,7 +267,11 @@ function init() {
                 .sv-username { color: white; font-weight: 600; font-size: 0.9rem; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
                 .sv-close { margin-left: auto; color: white; background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 5px; opacity: 0.8; }
                 .sv-body { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
-                .sv-card-img { width: 85%; max-height: 60vh; object-fit: cover; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+                .sv-card-wrapper { position: relative; z-index: 101; width: 85%; max-height: 60vh; pointer-events: none; }
+                .sv-card-img { width: 100%; max-height: 60vh; object-fit: cover; display: block; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+                .sv-entry-icon { position: absolute; top: 10px; right: 10px; z-index: 1; pointer-events: auto; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: rgba(0, 0, 0, 0.58); color: #fff; cursor: pointer; transition: background 0.2s ease, transform 0.2s ease; }
+                .sv-entry-icon:hover { background: rgba(0, 0, 0, 0.78); transform: translateY(-1px); }
+                .sv-entry-icon svg { width: 18px; height: 18px; }
                 .sv-footer { padding: 20px; padding-bottom: 40px; color: white; text-align: center; }
                 .sv-text-main { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
                 .sv-text-sub { font-size: 0.9rem; font-weight: 400; margin-bottom: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
@@ -275,6 +284,12 @@ function init() {
                 .sv-actions { margin-top: 15px; display: flex; justify-content: center; gap: 15px; }
                 .sv-action-btn { background: rgba(255, 255, 255, 0.15); border: none; padding: 8px 15px; border-radius: 8px; color: white; cursor: pointer; transition: background 0.2s; font-weight = 500; font-size: 0.9rem; }
                 .sv-action-btn:hover { background: rgba(255, 255, 255, 0.25); }
+                .sv-like-btn { min-width: 36px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 7px 9px; color: #D1D5DB; }
+                .sv-like-heart { width: 18px; height: 18px; fill: transparent; stroke: currentColor; stroke-width: 2; transition: fill 0.2s ease, color 0.2s ease, transform 0.2s ease, filter 0.2s ease; }
+                .sv-like-count { min-width: 0; font-variant-numeric: tabular-nums; }
+                .sv-like-btn.is-liked { background: rgba(244, 63, 94, 0.28); color: #FB7185; }
+                .sv-like-btn.is-liked .sv-like-heart { fill: currentColor; stroke: currentColor; transform: scale(1.08); filter: drop-shadow(0 0 4px rgba(251, 113, 133, 0.7)); }
+                .sv-like-btn:disabled { cursor: wait; opacity: 0.65; }
                 .pause-indicator { 
                     position: absolute; 
                     top: 50%; 
@@ -294,6 +309,7 @@ function init() {
                 /* VIEWER ENHANCEMENTS FOR PC */
                 @media (min-width: 1024px) {
                     .sv-body { padding-top: 20px; }
+                    .sv-card-wrapper { width: auto; max-width: 600px; }
                     .sv-card-img { 
                         width: auto; 
                         max-width: 600px; 
@@ -322,7 +338,7 @@ function init() {
                     max-width: 400px;
                     height: 100%; 
                     background: rgba(0,0,0,0.95); 
-                    z-index: 10; 
+                    z-index: 200;
                     display: none; 
                     flex-direction: column; 
                     padding: 10px; 
@@ -345,6 +361,13 @@ function init() {
                 .reply-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
                 .reply-header h3 { color: white; margin: 0; font-size: 1.1rem; }
                 .reply-close { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+                .reply-composer { display: flex; align-items: flex-start; gap: 10px; margin: 12px 0 4px; padding: 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; background: rgba(255,255,255,0.05); transition: background 0.2s ease, border-color 0.2s ease; }
+                .reply-composer:focus-within { background: rgba(255,255,255,0.09); border-color: rgba(61,180,242,0.75); }
+                .reply-composer-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+                .reply-composer-input { flex: 1; min-width: 0; min-height: 32px; max-height: 96px; padding: 6px 0; border: 0; outline: 0; background: transparent; color: #fff; font: inherit; font-size: 0.9rem; line-height: 1.35; resize: vertical; }
+                .reply-composer-input::placeholder { color: #9CA3AF; opacity: 1; }
+                .reply-composer-submit { align-self: center; padding: 6px 10px; border: 0; border-radius: 7px; background: #3DB4F2; color: #fff; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+                .reply-composer-submit:disabled { background: #374151; color: #9CA3AF; cursor: not-allowed; }
                 .reply-list { flex-grow: 1; overflow-y: auto; padding: 10px 0; }
                 .reply-item { display: flex; gap: 10px; margin-bottom: 15px; padding-bottom: 10px; border-bottom = 1px solid rgba(255,255,255,0.05); }
                 .reply-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
@@ -450,7 +473,10 @@ function init() {
                 const INPUT_MODAL_ID = "${INPUT_MODAL_ID}";
                 const TARGET_SEL = '${settings.activeTargetSelector}';
                 const INJECTED_TOKEN = "${prefilledToken.replace(/"/g, '\\"')}";
-                const CACHE_KEY = "anilist-feed-cache";
+                const CACHE_KEY = "anilist-feed-cache-v5";
+                const CURRENT_USER_KEY = "anilist-feed-current-user";
+                const CURRENT_USER_AVATAR_KEY = "anilist-feed-current-user-avatar";
+                const VIEWED_ACTIVITIES_KEY = "anilist-viewed-activity-ids";
                 const CACHE_DURATION_MS = 300000;
                 const STORY_DURATION = 5000;
                 const RING_COLOR = '${ringColor}';
@@ -469,9 +495,82 @@ function init() {
                 let currentActivityIdForReply = null; 
                 let isInteractionActive = false;
                 let isManuallyPaused = false;
-                let touchStartTime = 0;
+                                let touchStartTime = 0;
                 let touchHoldTimeout = null;
-
+                let scrollLockState = null;
+                let viewedActivityIds = new Set();
+                try {
+                    viewedActivityIds = new Set(JSON.parse(localStorage.getItem(VIEWED_ACTIVITIES_KEY) || '[]').map(String));
+                } catch (e) {
+                    console.warn('Failed to load viewed activity state.', e);
+                }
+                function isActivityViewed(activity) {
+                    return Boolean(activity) && viewedActivityIds.has(String(activity.id));
+                }
+                function isStoryFullyViewed(story) {
+                    return !story.isCurrentUser && story.activities.length > 0 && story.activities.every(isActivityViewed);
+                }
+                function orderStoryGroups(stories, currentUserName) {
+                    return [...stories]
+                        .map(s => ({ ...s, isCurrentUser: Boolean(s.isCurrentUser || (currentUserName && s.name === currentUserName)) }))
+                        .sort((a, b) => {
+                            if (a.isCurrentUser !== b.isCurrentUser) return a.isCurrentUser ? -1 : 1;
+                            return Number(isStoryFullyViewed(a)) - Number(isStoryFullyViewed(b));
+                        });
+                }
+                function getStoryRingStyle(story) {
+                    return RING_COLOR === 'seanime'
+                        ? getSeanimeRingStyle(story.activities)
+                        : getSegmentedRingStyle(story.activities);
+                }
+                function updateStoryRing(storyGroupIndex) {
+                    const story = allStoryGroups[storyGroupIndex];
+                    const ring = document.querySelector('.story-item[data-index="' + storyGroupIndex + '"] .story-ring');
+                    if (story && ring) ring.setAttribute('style', getStoryRingStyle(story));
+                }
+                function lockBackgroundScroll() {
+                    if (scrollLockState) return;
+                    const body = document.body;
+                    const root = document.documentElement;
+                    scrollLockState = {
+                        bodyOverflow: body.style.overflow,
+                        rootOverflow: root.style.overflow,
+                        bodyOverscrollBehavior: body.style.overscrollBehavior,
+                        rootOverscrollBehavior: root.style.overscrollBehavior,
+                    };
+                    body.style.overflow = 'hidden';
+                    root.style.overflow = 'hidden';
+                    body.style.overscrollBehavior = 'none';
+                    root.style.overscrollBehavior = 'none';
+                }
+                function unlockBackgroundScroll() {
+                    if (!scrollLockState) return;
+                    const body = document.body;
+                    const root = document.documentElement;
+                    body.style.overflow = scrollLockState.bodyOverflow;
+                    root.style.overflow = scrollLockState.rootOverflow;
+                    body.style.overscrollBehavior = scrollLockState.bodyOverscrollBehavior;
+                    root.style.overscrollBehavior = scrollLockState.rootOverscrollBehavior;
+                    scrollLockState = null;
+                }
+                function markActivityViewed(activityId) {
+                    const id = String(activityId);
+                    if (viewedActivityIds.has(id)) return;
+                    viewedActivityIds.add(id);
+                    try {
+                        localStorage.setItem(VIEWED_ACTIVITIES_KEY, JSON.stringify(Array.from(viewedActivityIds)));
+                    } catch (e) {
+                        console.warn('Failed to save viewed activity state.', e);
+                    }
+                    const activeStory = allStoryGroups[currentStoryGroupIndex];
+                    if (activeStory && isStoryFullyViewed(activeStory)) {
+                        const activeStoryName = activeStory.name;
+                        renderStories(allStoryGroups);
+                        currentStoryGroupIndex = allStoryGroups.findIndex(story => story.name === activeStoryName);
+                    } else {
+                        updateStoryRing(currentStoryGroupIndex);
+                    }
+                }
                 // --- TIMER CONTROL LOGIC ---
 
                 function pauseViewerTimer() {
@@ -542,13 +641,13 @@ function init() {
                     const pauseIndicator = document.getElementById('pause-indicator');
                     if (pauseIndicator) {
                         if (isManuallyPaused) {
-                            pauseIndicator.textContent = '⏸️ Paused';
+                            pauseIndicator.textContent = 'Paused';
                             pauseIndicator.classList.add('show');
                             pauseViewerTimer();
                         } else {
                             pauseIndicator.classList.remove('show');
                             setTimeout(() => {
-                                if (pauseIndicator) pauseIndicator.textContent = '▶️ Playing';
+                                if (pauseIndicator) pauseIndicator.textContent = 'Resumed';
                                 pauseIndicator.classList.add('show');
                                 setTimeout(() => {
                                     if (pauseIndicator) pauseIndicator.classList.remove('show');
@@ -646,66 +745,54 @@ function init() {
                     return "Just now";
                 }
                 
-                function getSegmentedRingStyle(count, isNew) {
-                    if (RING_COLOR === 'seanime') {
-                        // For Seanime accent, we'll handle it separately
-                        return '';
-                    }
-                    
-                    const cN = RING_COLOR; 
-                    const cB = '#334155'; 
-                    const sep = '#1F2937';
-                    
-                    // Show the exact number of segments based on activity count
-                    // No longer limiting to 8 segments
-                    const segments = count;
-                    
+                function getSegmentedRingStyle(activities) {
+                    if (RING_COLOR === 'seanime') return '';
+                    const activeColor = RING_COLOR;
+                    const viewedColor = '#64748B';
+                    const separatorColor = '#1F2937';
+                    const segments = activities.length;
+                    if (segments === 0) return 'background: transparent';
                     if (segments <= 1) {
-                        return \`background: \${isNew ? cN : cB}\`;
+                        return 'background: ' + (isActivityViewed(activities[0]) ? viewedColor : activeColor);
                     }
-                    
                     const deg = 360 / segments;
-                    let stops = [];
+                    const stops = [];
                     for (let i = 0; i < segments; i++) {
                         const start = i * deg;
                         const end = (i + 1) * deg;
-                        // For many segments, make the gap smaller (1 degree instead of 2) for better visibility
-                        const gapSize = segments > 12 ? 1 : 2;
-                        const segmentEnd = end - gapSize;
-                        stops.push(\`\${isNew ? cN : cB} \${start}deg \${segmentEnd}deg\`);
-                        stops.push(\`\${sep} \${segmentEnd}deg \${end}deg\`);
+                        const gapSize = Math.max(0.25, Math.min(0.75, deg * 0.18));
+                        const segmentEnd = Math.max(start, end - gapSize);
+                        const color = isActivityViewed(activities[i]) ? viewedColor : activeColor;
+                        stops.push(color + ' ' + start + 'deg ' + segmentEnd + 'deg');
+                        stops.push(separatorColor + ' ' + segmentEnd + 'deg ' + end + 'deg');
                     }
                     return 'background: conic-gradient(from -90deg, ' + stops.join(', ') + ')';
                 }
 
                 // Function to generate Seanime gradient based on activity count
-                function getSeanimeRingStyle(count, isNew) {
+                function getSeanimeRingStyle(activities) {
                     const activeColor = 'rgb(var(--color-brand-500))';
-                    const baseColor = '#334155';
+                    const viewedColor = '#64748B';
                     const separatorColor = '#1F2937';
-                    
-                    // Show the exact number of segments based on activity count
-                    // No longer limiting to 8 segments
-                    const segments = count;
-                    
+                    const segments = activities.length;
+                    if (segments === 0) return 'background: transparent';
                     if (segments <= 1) {
-                        return \`background: \${activeColor} !important\`;
+                        const color = isActivityViewed(activities[0]) ? viewedColor : activeColor;
+                        return 'background: ' + color + ' !important';
                     }
-                    
                     const deg = 360 / segments;
-                    let stops = [];
+                    const stops = [];
                     for (let i = 0; i < segments; i++) {
                         const start = i * deg;
                         const end = (i + 1) * deg;
-                        // For many segments, make the gap smaller (1 degree instead of 2) for better visibility
-                        const gapSize = segments > 12 ? 1 : 2;
-                        const segmentEnd = end - gapSize;
-                        stops.push(\`\${activeColor} \${start}deg \${segmentEnd}deg\`);
-                        stops.push(\`\${separatorColor} \${segmentEnd}deg \${end}deg\`);
+                        const gapSize = Math.max(0.25, Math.min(0.75, deg * 0.18));
+                        const segmentEnd = Math.max(start, end - gapSize);
+                        const color = isActivityViewed(activities[i]) ? viewedColor : activeColor;
+                        stops.push(color + ' ' + start + 'deg ' + segmentEnd + 'deg');
+                        stops.push(separatorColor + ' ' + segmentEnd + 'deg ' + end + 'deg');
                     }
                     return 'background: conic-gradient(from -90deg, ' + stops.join(', ') + ') !important';
                 }
-
                 // Helper function to capitalize activity status
                 function formatActivityStatus(status, progress) {
                     const statusLower = status.toLowerCase();
@@ -871,14 +958,75 @@ function init() {
                     }
                 }
 
-                window.replyActivity = (id) => {
-                    window.openReplyInputModal(id);
-                }
-                
-                window.showReplies = async (activityId) => {
+                    window.replyActivity = (id) => {
+                        window.openReplyInputModal(id);
+                    }
+                    window.updateLikeButton = (button, activity) => {
+                        const likeCount = Number(activity.likeCount || 0);
+                        const count = button.querySelector('.sv-like-count');
+                        if (count) count.textContent = likeCount > 0 ? String(likeCount) : '';
+                        button.classList.toggle('is-liked', Boolean(activity.isLiked));
+                        button.setAttribute('aria-pressed', String(Boolean(activity.isLiked)));
+                        button.setAttribute('aria-label', activity.isLiked ? 'Unlike activity' : 'Like activity');
+                        button.title = activity.isLiked ? 'Unlike activity' : 'Like activity';
+                    };
+                    window.toggleActivityLike = async (activityId) => {
+                        const activity = currentStoryData && currentStoryData.activities.find(item => item.id === activityId);
+                        const likeButton = document.getElementById('sv-like-btn');
+                        if (!activity || !likeButton || likeButton.disabled) return;
+                        const TOGGLE_LIKE_MUTATION = \`
+                            mutation ($activityId: Int!) {
+                                ToggleLikeV2(id: $activityId, type: ACTIVITY) {
+                                    ... on ListActivity { id likeCount isLiked }
+                                }
+                            }
+                        \`;
+                        likeButton.disabled = true;
+                        const result = await apiCall(TOGGLE_LIKE_MUTATION, { activityId: activityId });
+                        const updatedActivity = result && result.data && result.data.ToggleLikeV2;
+                        if (updatedActivity) {
+                            activity.likeCount = updatedActivity.likeCount;
+                            activity.isLiked = updatedActivity.isLiked;
+                            window.updateLikeButton(likeButton, activity);
+                        }
+                        likeButton.disabled = false;
+                    };
+                    window.submitInlineReply = async (activityId) => {
+                        const composerInput = document.getElementById('reply-composer-input');
+                        const composerSubmit = document.getElementById('reply-composer-submit');
+                        const replyText = composerInput?.value?.trim();
+                        if (!replyText || replyText.length > MAX_REPLY_CHARS || !activityId || !composerSubmit) return;
+                        const REPLY_MUTATION = 'mutation ($activityId: Int, $text: String) { SaveActivityReply(activityId: $activityId, text: $text) { id } }';
+                        composerSubmit.disabled = true;
+                        const result = await apiCall(REPLY_MUTATION, { activityId: activityId, text: replyText });
+                        if (result) {
+                            window.showReplies(activityId);
+                        } else {
+                            composerSubmit.disabled = false;
+                        }
+                    }
+                    window.showReplies = async (activityId) => {
                     const replyModal = document.getElementById('reply-modal');
                     const replyList = document.getElementById('reply-list');
-                    if (!replyModal || !replyList) return;
+                    const replyComposerAvatar = document.getElementById('reply-composer-avatar');
+                    const replyComposerInput = document.getElementById('reply-composer-input');
+                    const replyComposerSubmit = document.getElementById('reply-composer-submit');
+                    if (!replyModal || !replyList || !replyComposerAvatar || !replyComposerInput || !replyComposerSubmit) return;
+                    replyComposerAvatar.src = localStorage.getItem(CURRENT_USER_AVATAR_KEY) || 'https://s4.anilist.co/file/anilistcdn/user/avatar/large/default.png';
+                    replyComposerInput.value = '';
+                    const updateInlineReplyState = () => {
+                        const length = replyComposerInput.value.trim().length;
+                        replyComposerSubmit.disabled = length === 0 || length > MAX_REPLY_CHARS;
+                    };
+                    replyComposerInput.oninput = updateInlineReplyState;
+                    replyComposerInput.onkeydown = (event) => {
+                        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !replyComposerSubmit.disabled) {
+                            event.preventDefault();
+                            window.submitInlineReply(activityId);
+                        }
+                    };
+                    replyComposerSubmit.onclick = () => window.submitInlineReply(activityId);
+                    updateInlineReplyState();
 
                     isInteractionActive = true; 
                     pauseViewerTimer(); 
@@ -1021,6 +1169,7 @@ function init() {
                     
                     renderStoryFrame(true);
                     document.getElementById(VIEWER_ID).classList.add('is-open');
+                    lockBackgroundScroll();
 
                     document.addEventListener('keydown', handleKeyDown);
                     setupTouchHandling();
@@ -1044,8 +1193,8 @@ function init() {
                     currentStoryData = null;
                     currentStoryGroupIndex = -1;
                     isInteractionActive = false;
-                    isManuallyPaused = false;
-                    
+                                        isManuallyPaused = false;
+                    unlockBackgroundScroll();
                     document.removeEventListener('keydown', handleKeyDown);
                 }
 
@@ -1088,11 +1237,30 @@ function init() {
                 }
 
                 function renderStoryFrame(shouldAnimate) {
-                    const v = document.getElementById(VIEWER_ID);
+                                        const v = document.getElementById(VIEWER_ID);
                     if(!v || !currentStoryData) return;
-                    
+                    if (currentStoryData.activities.length === 0) {
+                        if(currentStoryTimer) clearTimeout(currentStoryTimer);
+                        if(progressInterval) clearInterval(progressInterval);
+                        v.querySelector('.sv-background').style.backgroundImage = \`url(\${currentStoryData.profileImage})\`;
+                        const emptyAvatar = v.querySelector('.sv-avatar');
+                        emptyAvatar.src = currentStoryData.profileImage;
+                        const emptyMeta = v.querySelector('.sv-meta');
+                        emptyMeta.innerHTML = '<span class="sv-username">' + (currentStoryData.isCurrentUser ? 'You' : currentStoryData.name) + '</span>';
+                        v.querySelector('.sv-progress-container').innerHTML = '';
+                        const emptyImage = v.querySelector('.sv-card-img');
+                        emptyImage.style.display = 'none';
+                        v.querySelector('.sv-text-main').innerText = 'Nothing here';
+                        v.querySelector('.sv-text-sub').innerText = 'No recent activity.';
+                        ['#sv-open-entry', '#sv-like-btn', '#sv-view-replies-btn'].forEach(selector => {
+                            const button = v.querySelector(selector);
+                            if (button) button.style.display = 'none';
+                        });
+                        return;
+                    }
                     const act = currentStoryData.activities[currentStoryIndex];
                     const activityId = act.id;
+                    markActivityViewed(activityId);
                     const mediaId = act.mediaId;
                     const mediaType = act.mediaType;
                     
@@ -1130,21 +1298,24 @@ function init() {
                     const img = v.querySelector('.sv-card-img');
                     const tMain = v.querySelector('.sv-text-main');
                     const tSub = v.querySelector('.sv-text-sub');
+                    const entryBtn = v.querySelector('#sv-open-entry');
+                    const likeBtn = v.querySelector('#sv-like-btn');
                     const viewRepliesBtn = v.querySelector('#sv-view-replies-btn');
-
+                    img.style.display = '';
+                    [entryBtn, likeBtn, viewRepliesBtn].forEach(button => {
+                        if (button) button.style.display = '';
+                    });
                     img.src = act.coverImage || 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/default.jpg';
                     tMain.innerText = act.textMain;
                     tSub.innerText = act.mediaTitle;
 
-                    const replyBtn = v.querySelector('#sv-reply-btn');
-                    const entryBtn = v.querySelector('#sv-entry-btn');
-                    
-                    if (replyBtn) {
-                        replyBtn.onclick = () => window.replyActivity(activityId);
+                                        if (entryBtn) {
+                        entryBtn.style.display = mediaId ? '' : 'none';
+                        entryBtn.onclick = mediaId ? () => window.openEntryPage(mediaId, mediaType) : null;
                     }
-
-                    if (entryBtn && mediaId) {
-                        entryBtn.onclick = () => window.openEntryPage(mediaId, mediaType);
+                    if (likeBtn) {
+                        window.updateLikeButton(likeBtn, act);
+                        likeBtn.onclick = () => window.toggleActivityLike(activityId);
                     }
 
                     if (viewRepliesBtn) {
@@ -1180,18 +1351,20 @@ function init() {
                                 <button class="sv-close" aria-label="Close" onclick="window.closeStoryViewer()">&times;</button>
                             </div>
                             <div class="sv-body">
-                                <div class="pause-indicator" id="pause-indicator">⏸️ Paused</div>
+                                <div class="pause-indicator" id="pause-indicator">Paused</div>
                                 <div class="sv-nav-left" onclick="window.prevStory()"></div> 
-                                <img class="sv-card-img" src="">
+                                <div class="sv-card-wrapper">
+                                    <img class="sv-card-img" src="">
+                                    <button class="sv-entry-icon" id="sv-open-entry" aria-label="Open media page" title="Open media page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"></path><path d="M10 14 21 3"></path><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg></button>
+                                </div>
                                 <div class="sv-nav-right" onclick="window.nextStory()"></div>
                             </div>
                             <div class="sv-footer">
                                 <div class="sv-text-main"></div>
                                 <div class="sv-text-sub"></div>
                                 <div class="sv-actions">
-                                    <button class="sv-action-btn" id="sv-reply-btn">💬 Reply</button>
-                                    <button class="sv-action-btn" id="sv-entry-btn">📖 Open page</button>
-                                    <button class="sv-action-btn" id="sv-view-replies-btn">👁️ View Replies</button>
+                                    <button class="sv-action-btn sv-like-btn" id="sv-like-btn" type="button" aria-label="Like activity" title="Like activity" aria-pressed="false"><svg class="sv-like-heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg><span class="sv-like-count"></span></button>
+                                    <button class="sv-action-btn" id="sv-view-replies-btn">View Replies</button>
                                 </div>
                             </div>
                             
@@ -1199,6 +1372,11 @@ function init() {
                                 <div class="reply-header">
                                     <h3>Activity Replies</h3>
                                     <button class="reply-close" aria-label="Close" onclick="window.closeReplies()">&times;</button>
+                                </div>
+                                <div class="reply-composer" id="reply-composer">
+                                    <img class="reply-composer-avatar" id="reply-composer-avatar" src="" alt="Your profile image">
+                                    <textarea class="reply-composer-input" id="reply-composer-input" placeholder="Write something..." aria-label="Write a reply"></textarea>
+                                    <button class="reply-composer-submit" id="reply-composer-submit" type="button" disabled>Post</button>
                                 </div>
                                 <div class="reply-list" id="reply-list">
                                     <div class="reply-none">Loading replies...</div>
@@ -1290,7 +1468,8 @@ function init() {
                     const content = document.getElementById('feed-content');
                     if (!content) return;
 
-                    allStoryGroups = stories;
+                    const currentUserName = localStorage.getItem(CURRENT_USER_KEY) || '';
+                    allStoryGroups = orderStoryGroups(stories, currentUserName);
 
                     const cacheIndicator = fromCache ? ' (Cached)' : '';
                     const reloadText = fromCache ? 'Refresh' : '↻ Reload';
@@ -1299,25 +1478,25 @@ function init() {
                     if (stories.length === 0) {
                         content.innerHTML = headerHtml + '<div class="state-msg">No recent activity found.</div>';
                     } else {
-                        const html = stories.map((s, index) => {
+                        const html = allStoryGroups.map((s, index) => {
                             if (RING_COLOR === 'seanime') {
                                 // For Seanime accent, use dynamic gradient based on activity count
-                                const ringStyle = getSeanimeRingStyle(s.activities.length, s.status === 'new');
+                                const ringStyle = getSeanimeRingStyle(s.activities);
                                 return \`
-                                <div class="story-item" data-index="\${index}">
+                                <div class="story-item\${s.isCurrentUser ? ' current-user' : ''}\${s.isCurrentUser && s.activities.length === 0 ? ' empty-self' : ''}\${s.isCurrentUser && index < allStoryGroups.length - 1 ? ' has-divider' : ''}" data-index="\${index}">
                                     <div class="story-ring" style="\${ringStyle}">
                                         <img src="\${s.profileImage}" class="story-image\${isGifUrl(s.profileImage) ? '" data-gif="true"' : ''}" onerror="this.src='https://s4.anilist.co/file/anilistcdn/user/avatar/large/default.png'">
                                     </div>
-                                    <span class="story-name">\${s.name}</span>
+                                    <span class="story-name">\${s.isCurrentUser ? 'You' : s.name}</span>
                                 </div>\`;
                             } else {
-                                const ring = getSegmentedRingStyle(s.activities.length, s.status === 'new');
+                                const ring = getSegmentedRingStyle(s.activities);
                                 return \`
-                                <div class="story-item" data-index="\${index}">
+                                <div class="story-item\${s.isCurrentUser ? ' current-user' : ''}\${s.isCurrentUser && s.activities.length === 0 ? ' empty-self' : ''}\${s.isCurrentUser && index < allStoryGroups.length - 1 ? ' has-divider' : ''}" data-index="\${index}">
                                     <div class="story-ring" style="\${ring}">
                                         <img src="\${s.profileImage}" class="story-image\${isGifUrl(s.profileImage) ? '" data-gif="true"' : ''}" onerror="this.src='https://s4.anilist.co/file/anilistcdn/user/avatar/large/default.png'">
                                     </div>
-                                    <span class="story-name">\${s.name}</span>
+                                    <span class="story-name">\${s.isCurrentUser ? 'You' : s.name}</span>
                                 </div>\`;
                             }
                         }).join('');
@@ -1357,6 +1536,7 @@ function init() {
                     // Updated query to include media id and type
                     const query = \`
                     query { 
+                        Viewer { id name avatar { large medium } }
                         Page(page: 1, perPage: 50) { 
                             activities(type: MEDIA_LIST, sort: ID_DESC, isFollowing: true) { 
                                 ... on ListActivity { 
@@ -1369,7 +1549,9 @@ function init() {
                                     } 
                                     status 
                                     progress 
-                                    createdAt             
+                                    createdAt
+                                    likeCount
+                                    isLiked
                                     user { 
                                         name 
                                         avatar { large medium } 
@@ -1390,14 +1572,66 @@ function init() {
                         const json = await res.json();
                         if (!res.ok || json.errors) throw new Error(json.errors ? json.errors[0].message : 'Invalid Token or Network Error');
 
-                        const rawActs = json.data.Page.activities;
+                        const currentUser = json.data.Viewer;
+                        const currentUserName = currentUser && currentUser.name;
+                        const currentUserId = currentUser && currentUser.id;
+                        const followedActs = json.data.Page.activities || [];
+                        const recencyCutoff = followedActs.length > 0
+                            ? Math.min(...followedActs.map(activity => activity.createdAt))
+                            : Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60);
+                        const currentUserAvatar = (currentUser.avatar && (currentUser.avatar.large || currentUser.avatar.medium)) || 'https://s4.anilist.co/file/anilistcdn/user/avatar/large/default.png';
+                        localStorage.setItem(CURRENT_USER_KEY, currentUserName || '');
+                        localStorage.setItem(CURRENT_USER_AVATAR_KEY, currentUserAvatar);
+                        let ownActs = [];
+                        if (currentUserId) {
+                            const ownActivitiesQuery = \`
+                            query ($userId: Int!, $createdAtGreater: Int!) {
+                                Page(page: 1, perPage: 50) {
+                                    activities(type: MEDIA_LIST, sort: ID_DESC, userId: $userId, createdAt_greater: $createdAtGreater) {
+                                        ... on ListActivity {
+                                            id
+                                            media {
+                                                id
+                                                type
+                                                title { romaji english }
+                                                coverImage { extraLarge }
+                                            }
+                                            status
+                                            progress
+                                            createdAt
+                                            likeCount
+                                            isLiked
+                                            user {
+                                                name
+                                                avatar { large medium }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            \`;
+                            try {
+                                const ownRes = await fetch('https://graphql.anilist.co', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer ' + token },
+                                    body: JSON.stringify({ query: ownActivitiesQuery, variables: { userId: currentUserId, createdAtGreater: recencyCutoff } })
+                                });
+                                const ownJson = await ownRes.json();
+                                if (!ownRes.ok || ownJson.errors) throw new Error(ownJson.errors ? ownJson.errors[0].message : 'Unable to fetch your activities');
+                                ownActs = ownJson.data.Page.activities || [];
+                            } catch (ownActivityError) {
+                                console.warn('Unable to fetch your activities; showing followed-user activities only.', ownActivityError);
+                            }
+                        }
+                        const rawActs = [...followedActs, ...ownActs]
+                            .filter((activity, index, activities) => activities.findIndex(item => item.id === activity.id) === index);
                         const grouped = {};
                         
                         rawActs.forEach(act => {
                             const uName = act.user.name;
                             // Prioritize large avatar for better GIF support, fallback to medium
                             const profileImage = act.user.avatar.large || act.user.avatar.medium;
-                            if (!grouped[uName]) grouped[uName] = { name: uName, profileImage: profileImage, status: 'new', activities: [] };
+                            if (!grouped[uName]) grouped[uName] = { name: uName, profileImage: profileImage, status: 'new', isCurrentUser: uName === currentUserName, activities: [] };
                             
                             const title = act.media.title.english || act.media.title.romaji;
                             
@@ -1412,9 +1646,15 @@ function init() {
                                 mediaTitle: title,
                                 timestamp: timeAgo(act.createdAt),
                                 coverImage: act.media.coverImage.extraLarge,
+                                likeCount: act.likeCount,
+                                isLiked: act.isLiked,
                             });
                         });
 
+                        if (currentUserName && !grouped[currentUserName]) {
+                            const viewerAvatar = (currentUser.avatar && (currentUser.avatar.large || currentUser.avatar.medium)) || 'https://s4.anilist.co/file/anilistcdn/user/avatar/large/default.png';
+                            grouped[currentUserName] = { name: currentUserName, profileImage: viewerAvatar, status: 'new', isCurrentUser: true, activities: [] };
+                        }
                         const finalStories = Object.values(grouped);
                         finalStories.forEach(g => g.activities.reverse());
 
