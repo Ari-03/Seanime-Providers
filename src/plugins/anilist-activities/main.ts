@@ -1,4 +1,3 @@
-
 /// <reference path="./core.d.ts" />  
 
 function init() {  
@@ -267,12 +266,13 @@ function init() {
                 .sv-username { color: white; font-weight: 600; font-size: 0.9rem; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
                 .sv-close { margin-left: auto; color: white; background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 5px; opacity: 0.8; }
                 .sv-body { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
-                .sv-card-wrapper { position: relative; z-index: 101; width: 85%; max-height: 60vh; pointer-events: none; }
+                .sv-activity-layout { position: relative; z-index: 101; display: flex; flex-direction: column; align-items: center; width: 100%; gap: 16px; pointer-events: none; }
+                .sv-card-wrapper { position: relative; z-index: 101; width: 85%; max-height: 60vh; flex-shrink: 0; pointer-events: none; }
                 .sv-card-img { width: 100%; max-height: 60vh; object-fit: cover; display: block; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
                 .sv-entry-icon { position: absolute; top: 10px; right: 10px; z-index: 1; pointer-events: auto; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: rgba(0, 0, 0, 0.58); color: #fff; cursor: pointer; transition: background 0.2s ease, transform 0.2s ease; }
                 .sv-entry-icon:hover { background: rgba(0, 0, 0, 0.78); transform: translateY(-1px); }
                 .sv-entry-icon svg { width: 18px; height: 18px; }
-                .sv-footer { padding: 20px; padding-bottom: 40px; color: white; text-align: center; }
+                .sv-footer { padding: 20px; padding-bottom: 40px; color: white; text-align: center; pointer-events: auto; }
                 .sv-text-main { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
                 .sv-text-sub { font-size: 0.9rem; font-weight: 400; margin-bottom: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
                 .sv-nav-left, .sv-nav-right { position: absolute; top: 0; bottom: 0; z-index: 100; cursor: pointer; background: transparent; }
@@ -306,15 +306,26 @@ function init() {
                 }
                 .pause-indicator.show { display: block; animation: fadeIn 0.3s; }
 
+                @media (max-width: 768px) {
+                    .sv-body { align-items: flex-start; justify-content: flex-start; padding-top: 12px; overflow-y: auto; }
+                    .sv-activity-layout { flex: 0 0 auto; gap: 18px; padding: 0 16px 24px; box-sizing: border-box; }
+                    .sv-card-wrapper { width: 100%; max-width: 440px; max-height: none; }
+                    .sv-card-img { width: 100%; max-height: 54vh; }
+                    .sv-footer { width: min(100%, 440px); padding: 0; text-align: center; flex-shrink: 0; }
+                    .sv-actions { margin-top: 16px; gap: 12px; }
+                }
                 /* VIEWER ENHANCEMENTS FOR PC */
                 @media (min-width: 1024px) {
-                    .sv-body { padding-top: 20px; }
-                    .sv-card-wrapper { width: auto; max-width: 600px; }
+                    .sv-body { padding: 20px 12%; box-sizing: border-box; }
+                    .sv-activity-layout { position: relative; z-index: 101; display: grid; grid-template-columns: minmax(300px, 600px) minmax(280px, 1fr); align-items: center; column-gap: 36px; width: 100%; max-width: 1080px; pointer-events: none; }
+                    .sv-card-wrapper { grid-column: 1; width: 100%; max-width: 520px; justify-self: center; transform: translateY(-40px); }
                     .sv-card-img { 
-                        width: auto; 
-                        max-width: 600px; 
+                        width: 100%;
+                        max-width: 520px;
                         max-height: 70vh; 
                     }
+                    .sv-footer { grid-column: 2; width: 100%; min-width: 0; padding: 0; text-align: left; pointer-events: auto; }
+                    .sv-actions { justify-content: flex-start; }
                     .sv-nav-left { width: 15%; } 
                     .sv-nav-right { width: 15%; } 
                 }
@@ -1165,7 +1176,8 @@ function init() {
 
                     currentStoryData = storyGroup;
                     currentStoryGroupIndex = storyGroupIndex;
-                    currentStoryIndex = 0;
+                    const firstUnviewedIndex = storyGroup.activities.findIndex(activity => !isActivityViewed(activity));
+                    currentStoryIndex = firstUnviewedIndex >= 0 ? firstUnviewedIndex : 0;
                     
                     renderStoryFrame(true);
                     document.getElementById(VIEWER_ID).classList.add('is-open');
@@ -1352,20 +1364,22 @@ function init() {
                             </div>
                             <div class="sv-body">
                                 <div class="pause-indicator" id="pause-indicator">Paused</div>
-                                <div class="sv-nav-left" onclick="window.prevStory()"></div> 
-                                <div class="sv-card-wrapper">
-                                    <img class="sv-card-img" src="">
-                                    <button class="sv-entry-icon" id="sv-open-entry" aria-label="Open media page" title="Open media page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"></path><path d="M10 14 21 3"></path><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg></button>
+                                <div class="sv-nav-left" onclick="window.prevStory()"></div>
+                                <div class="sv-activity-layout">
+                                    <div class="sv-card-wrapper">
+                                        <img class="sv-card-img" src="">
+                                        <button class="sv-entry-icon" id="sv-open-entry" aria-label="Open media page" title="Open media page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"></path><path d="M10 14 21 3"></path><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg></button>
+                                    </div>
+                                    <div class="sv-footer">
+                                        <div class="sv-text-main"></div>
+                                        <div class="sv-text-sub"></div>
+                                        <div class="sv-actions">
+                                            <button class="sv-action-btn sv-like-btn" id="sv-like-btn" type="button" aria-label="Like activity" title="Like activity" aria-pressed="false"><svg class="sv-like-heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg><span class="sv-like-count"></span></button>
+                                            <button class="sv-action-btn" id="sv-view-replies-btn">View Replies</button>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="sv-nav-right" onclick="window.nextStory()"></div>
-                            </div>
-                            <div class="sv-footer">
-                                <div class="sv-text-main"></div>
-                                <div class="sv-text-sub"></div>
-                                <div class="sv-actions">
-                                    <button class="sv-action-btn sv-like-btn" id="sv-like-btn" type="button" aria-label="Like activity" title="Like activity" aria-pressed="false"><svg class="sv-like-heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg><span class="sv-like-count"></span></button>
-                                    <button class="sv-action-btn" id="sv-view-replies-btn">View Replies</button>
-                                </div>
                             </div>
                             
                             <div id="reply-modal" class="pos-\${REPLY_POSITION}">
