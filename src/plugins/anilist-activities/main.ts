@@ -1,3 +1,4 @@
+
 /// <reference path="./core.d.ts" />  
 
 function init() {  
@@ -262,7 +263,11 @@ function init() {
                 .sv-progress-fill { height: 100%; background: #fff; width: 0%; transition: width 0.1s linear; }
                 .sv-progress-bar.completed .sv-progress-fill { width: 100%; }
                 .sv-header { display: flex; align-items: center; padding: 0 16px; margin-top: 4px; height: 50px; }
+                .sv-profile-avatar-link { display: flex; flex-shrink: 0; }
                 .sv-avatar { width: 32px; height: 32px; border-radius: 50%; margin-right: 10px; border: 1px solid rgba(255,255,255,0.2); }
+                .sv-profile-link { color: inherit; text-decoration: none; cursor: pointer; }
+                .sv-profile-link:hover .sv-avatar, .sv-profile-link:focus-visible .sv-avatar { border-color: #3DB4F2; box-shadow: 0 0 0 2px rgba(61,180,242,0.35); }
+                .sv-profile-name-link:hover, .sv-profile-name-link:focus-visible { color: #3DB4F2; text-decoration: underline; outline: none; }
                 .sv-username { color: white; font-weight: 600; font-size: 0.9rem; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
                 .sv-close { margin-left: auto; color: white; background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 5px; opacity: 0.8; }
                 .sv-body { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
@@ -1255,10 +1260,13 @@ function init() {
                         if(currentStoryTimer) clearTimeout(currentStoryTimer);
                         if(progressInterval) clearInterval(progressInterval);
                         v.querySelector('.sv-background').style.backgroundImage = \`url(\${currentStoryData.profileImage})\`;
+                        const profileUrl = 'https://anilist.co/user/' + encodeURIComponent(currentStoryData.name || '');
                         const emptyAvatar = v.querySelector('.sv-avatar');
                         emptyAvatar.src = currentStoryData.profileImage;
+                        const avatarLink = v.querySelector('#sv-profile-avatar-link');
+                        if (avatarLink) avatarLink.href = profileUrl;
                         const emptyMeta = v.querySelector('.sv-meta');
-                        emptyMeta.innerHTML = '<span class="sv-username">' + (currentStoryData.isCurrentUser ? 'You' : currentStoryData.name) + '</span>';
+                        emptyMeta.innerHTML = '<a class="sv-profile-link sv-profile-name-link" href="' + profileUrl + '" aria-label="Open AniList profile"><span class="sv-username">' + (currentStoryData.isCurrentUser ? 'You' : currentStoryData.name) + '</span></a>';
                         v.querySelector('.sv-progress-container').innerHTML = '';
                         const emptyImage = v.querySelector('.sv-card-img');
                         emptyImage.style.display = 'none';
@@ -1289,15 +1297,19 @@ function init() {
                     } else {
                         v.querySelector('.sv-background').style.backgroundImage = \`url(\${backgroundImage})\`;
                     }
+                    const profileUrl = 'https://anilist.co/user/' + encodeURIComponent(currentStoryData.name || '');
                     const avatarElement = v.querySelector('.sv-avatar');
                     avatarElement.src = currentStoryData.profileImage;
                     if (isGifUrl(currentStoryData.profileImage)) {
                         avatarElement.setAttribute('data-gif', 'true');
+                    } else {
+                        avatarElement.removeAttribute('data-gif');
                     }
-                    
+                    const avatarLink = v.querySelector('#sv-profile-avatar-link');
+                    if (avatarLink) avatarLink.href = profileUrl;
                     const svMeta = v.querySelector('.sv-meta');
                     svMeta.innerHTML = \`
-                        <span class="sv-username">\${currentStoryData.name}</span>
+                        <a class="sv-profile-link sv-profile-name-link" href="\${profileUrl}" aria-label="Open AniList profile"><span class="sv-username">\${currentStoryData.isCurrentUser ? 'You' : currentStoryData.name}</span></a>
                         <span style="opacity: 0.6; font-weight: 400; font-size: 0.8rem;"> • \${act.timestamp}</span>
                     \`;
                     
@@ -1358,7 +1370,7 @@ function init() {
                         <div class="sv-content">
                             <div class="sv-progress-container"></div>
                             <div class="sv-header">
-                                <img class="sv-avatar" src="">
+                                <a class="sv-profile-link sv-profile-avatar-link" id="sv-profile-avatar-link" href="#" aria-label="Open AniList profile"><img class="sv-avatar" src="" alt=""></a>
                                 <div class="sv-meta"></div>
                                 <button class="sv-close" aria-label="Close" onclick="window.closeStoryViewer()">&times;</button>
                             </div>
