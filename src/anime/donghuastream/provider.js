@@ -123,9 +123,30 @@ class Provider {
     const res = await fetch(embedUrl, { headers: { "User-Agent": this.ua } });
     const html = await res.text();
 
-    const match = html.match(/"manifestUrl":"([^"]+)"/);
-    if (!match) throw new Error("manifestUrl not found on dailymotion embed");
-    const m3u8Url = match[1].replace(/\\\//g, "/");
+    // Try to extract from PLAYER_CONFIG first (new method)
+    const configMatch = html.match(/window\.__PLAYER_CONFIG__\s*=\s*({.*?});\s*<\/script>/s);
+    if (configMatch) {
+      try {
+        const config = JSON.parse(configMatch[1]);
+        const streamUrl = config?.criticalMetadata?.stream?.url;
+        if (streamUrl) {
+          const m3u8Url = streamUrl.replace(/\\\//g, "/");
+          return {
+            server,
+            headers: { Referer: "https://geo.dailymotion.com/" },
+            videoSources: [{ url: m3u8Url, quality: "auto", type: "m3u8", subtitles: [] }],
+          };
+        }
+      } catch (e) {
+        // If JSON parsing fails, fall through to old method
+        console.warn("Failed to parse PLAYER_CONFIG, falling back to old method:", e.message);
+      }
+    }
+
+    // Fallback to old method (manifestUrl)
+    const manifestMatch = html.match(/"manifestUrl":"([^"]+)"/);
+    if (!manifestMatch) throw new Error("manifestUrl not found on dailymotion embed");
+    const m3u8Url = manifestMatch[1].replace(/\\\//g, "/");
 
     return {
       server,
@@ -138,6 +159,49 @@ class Provider {
     const res = await fetch(embedUrl, { headers: { "User-Agent": this.ua } });
     const html = await res.text();
 
+    // Try to extract from Rumble config (new method)
+    // Look for the m.f["videoId"] = { ... } config object
+    const configMatch = html.match(/m\.f\["([^"]+)"\]\s*=\s*({[^;]+);/);
+    if (configMatch) {
+      try {
+        const configStr = configMatch[2];
+        
+        // Extract HLS URL (preferred - adaptive streaming)
+        const hlsMatch = configStr.match(/"hls":\{"url":"([^"]+)"/);
+        if (hlsMatch) {
+          const streamUrl = hlsMatch[1].replace(/\\\//g, "/");
+          return {
+            server,
+            headers: { Referer: "https://rumble.com/" },
+            videoSources: [{ url: streamUrl, quality: "auto", type: "m3u8", subtitles: [] }],
+          };
+        }
+        
+        // Extract all quality levels from the "ua" object
+        const videoSources = [];
+        const qualityRegex = /"(\d+)":\{"url":"([^"]+)"/g;
+        let qualityMatch;
+        while ((qualityMatch = qualityRegex.exec(configStr)) !== null) {
+          const quality = qualityMatch[1];
+          const url = qualityMatch[2].replace(/\\\//g, "/");
+          videoSources.push({ url, quality, type: "m3u8", subtitles: [] });
+        }
+        
+        if (videoSources.length) {
+          // Sort by quality (low to high)
+          videoSources.sort((a, b) => parseInt(a.quality) - parseInt(b.quality));
+          return {
+            server,
+            headers: { Referer: "https://rumble.com/" },
+            videoSources,
+          };
+        }
+      } catch (e) {
+        console.warn("Failed to parse Rumble config, falling back to old method:", e.message);
+      }
+    }
+
+    // Fallback to old method (tar URL)
     const match = html.match(/"tar":\{"url":"([^"]+)"/);
     if (!match) throw new Error("tar url not found on rumble embed");
     const streamUrl = match[1].replace(/\\\//g, "/");
