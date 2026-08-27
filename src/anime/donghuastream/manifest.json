@@ -1,7 +1,7 @@
 {
   "id": "donghuastream",
   "name": "DonghuaStream",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/donghuastream/manifest.json",
   "language": "javascript",
   "type": "onlinestream-provider",
