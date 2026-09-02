@@ -117,20 +117,7 @@ Or
 ### Extra info
 
 - [License](./LICENSE)
-- [TO;DO List](./TO;DO.md)
 
 ### Other related projects (Made by me)
 
 - [Seanime Android](https://github.com/Pal-droid/seanime-android) ***DEPRECATED***
-
-### Other connections
-
-<p align="center">
-  <a href="https://discord.gg/syeSKs4R9H">
-    <img src="https://img.shields.io/discord/1224767201551192224?color=5865F2&label=Discord&logo=discord&logoColor=white" />
-  </a>
-</p>
-
-<p align="center">
-  &#8226; <a href="https://discord.gg/syeSKs4R9H">Seanime Discord server</a>
-</p>
