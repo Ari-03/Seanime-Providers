@@ -74,3 +74,9 @@ The badge on the tray icon counts real blocked downloads since you last opened i
 - Cached Shoko lookups are tied to the Shoko URL, so pointing the plugin at a different server never reuses stale IDs. Changing the URL or key while a sync is running stops that sync and starts a fresh one.
 - An alternative without a plugin is to add Shoko's destination folder as an extra library path in Seanime, so Seanime keeps seeing the files. That only works if Seanime can parse Shoko's renamed file names correctly, which is not a given for multi-season shows.
 - Requires Seanime 3.7.1 or newer.
+
+## Development checks
+
+With Go 1.25 or newer and Bun installed, run `go test -v` from `tests/`.
+The test runs the plugin in Seanime 3.10.2's Goja version with Go-backed episode types.
+It checks library recording, Shoko mapping, and duplicate vetoes while excluding specials and invalid mappings.
