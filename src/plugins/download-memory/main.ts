@@ -468,7 +468,8 @@ function init() {
                 const byMedia: Record<string, number[]> = {}
                 const titles: Record<string, string> = {}
                 for (const lf of files) {
-                    if (!lf.mediaId || !lf.metadata || lf.metadata.type !== "main") continue
+                    // Goja exposes Go's named string types as objects; normalize before comparing.
+                    if (!lf.mediaId || !lf.metadata || String(lf.metadata.type) !== "main") continue
                     const key = String(lf.mediaId)
                     if (!byMedia[key]) byMedia[key] = []
                     byMedia[key].push(lf.metadata.episode)
@@ -1068,7 +1069,7 @@ function init() {
                 if (collection.hasMappingError) throw new Error("Seanime reported an episode mapping error")
                 const map: EpisodeMap = {}
                 for (const ep of collection.episodes || []) {
-                    if (ep.type !== "main" || ep.isInvalid || !ep.aniDBEpisode) continue
+                    if (String(ep.type) !== "main" || ep.isInvalid || !ep.aniDBEpisode) continue
                     const key = shoko.anidbKey(ep.aniDBEpisode)
                     if (key) map[key] = ep.episodeNumber
                 }
