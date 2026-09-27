@@ -541,11 +541,11 @@ async function extractByse(embedUrl: string): Promise<VideoSource[]> {
         return sources
             .filter(s => s && typeof s.url === "string")
             .map((s, i) => ({
-            url: s.url,
-            type: String(s.mime_type || "").indexOf("mpegurl") !== -1 ? "m3u8" : "mp4",
-            quality: s.label || s.height && `${s.height}p` || `auto ${i + 1}`,
-            subtitles: [],
-        }));
+                url: s.url,
+                type: String(s.mime_type || "").indexOf("mpegurl") !== -1 ? "m3u8" : "mp4",
+                quality: s.label || s.height && `${s.height}p` || `auto ${i + 1}`,
+                subtitles: [],
+            }));
     }
     catch (err) {
         console.error("AnimeAV1: Byse no respondió como se esperaba:", err);
@@ -570,7 +570,7 @@ class Provider {
     private baseUrl = "https://animeav1.com";
     getSettings(): Settings {
         return {
-            episodeServers: ["HLS", "UPNShare", "Byse", "Voe", "MP4Upload"],
+            episodeServers: ["Voe", "Byse", "MP4Upload", "UPNShare", "HLS"],
             supportsDub: true,
         };
     }
@@ -879,11 +879,11 @@ class Provider {
             } = {};
             if (wanted === "HLS") {
                 sources = [{
-                        url: embedUrl.replace("/play/", "/m3u8/"),
-                        type: "m3u8",
-                        quality: "auto",
-                        subtitles: [],
-                    }];
+                    url: embedUrl.replace("/play/", "/m3u8/"),
+                    type: "m3u8",
+                    quality: "auto",
+                    subtitles: [],
+                }];
                 headers = HLS_HEADERS;
             }
             else if (wanted === "UPNSHARE") {
