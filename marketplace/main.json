@@ -585,5 +585,17 @@
     "lang": "multi",
     "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/mangadot.png",
     "website": "https://mangadot.net/"
+  },
+  {
+    "id": "xcomic",
+    "name": "xComic",
+    "description": "English manga provider for xComic.",
+    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/manga/xcomic/manifest.json",
+    "author": "Pal",
+    "type": "manga-provider",
+    "language": "javascript",
+    "lang": "en",
+    "icon": "https://xcomic.me/favicon.ico",
+    "website": "https://xcomic.me/"
   }
 ]
