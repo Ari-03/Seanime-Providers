@@ -1,4 +1,4 @@
-/// <reference path="./manga-provider.d.ts" />
+/// <reference path="../manga-provider.d.ts" />
 
 class Provider {
     private api = "https://manhwawebbackend-production.up.railway.app"

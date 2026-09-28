@@ -1,5 +1,5 @@
 /// <reference path="./core.d.ts" />
-/// <reference path="./manga-provider.d.ts" />
+/// <reference path="../manga-provider.d.ts" />
 
 class Provider {
     private baseURL = 'https://mangafire.to';

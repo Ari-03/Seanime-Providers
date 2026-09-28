@@ -1,4 +1,4 @@
-/// <reference path="./online-streaming-provider.d.ts" />
+/// <reference path="../online-streaming-provider.d.ts" />
 /// <reference path="./doc.d.ts" />
 
 class Provider {
