@@ -8,6 +8,7 @@
   "type": "onlinestream-provider",
   "language": "javascript",
   "lang": "en",
+  "icon": "https://raw.githubusercontent.com/Seanime-contributions/Seanime-Providers/main/public/shiro.ico",
   "website": "https://shiro.so/",
   "payloadURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/shiro/provider.js"
 }
