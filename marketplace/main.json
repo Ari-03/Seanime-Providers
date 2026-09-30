@@ -503,18 +503,6 @@
     "website": ""
   },
   {
-    "id": "anibd",
-    "name": "AniBD",
-    "description": "AniBD is an online streaming provider for subbed BD anime in english",
-    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/anibd/manifest.json",
-    "author": "Pal",
-    "type": "onlinestream-provider",
-    "language": "javascript",
-    "lang": "en",
-    "icon": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/public/anibd.jpg",
-    "website": ""
-  },
-  {
     "id": "anilist-notifications",
     "name": "AniList Notifications",
     "description": "View your AniList notifications.",
