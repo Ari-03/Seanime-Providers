@@ -3,7 +3,7 @@
   "name": "Shiro",
   "description": "Shiro is an AniList-backed online streaming provider for subbed and dubbed anime.",
   "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/shiro/manifest.json",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Pal",
   "type": "onlinestream-provider",
   "language": "javascript",

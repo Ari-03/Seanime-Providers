@@ -7,7 +7,7 @@ class Provider {
 
   getSettings() {
     return {
-      episodeServers: ["Shiro"],
+      episodeServers: ["Sub", "Dub"],
       supportsDub: true,
     };
   }
@@ -63,12 +63,15 @@ class Provider {
     });
   }
 
-  async findEpisodeServer(episode, _server) {
+  async findEpisodeServer(episode, server) {
     const parsed = this.parseEpisodeId(episode.id);
     if (!parsed) throw new Error("Invalid Shiro episode ID");
 
+    const selectedServer = this.normalizeServer(server);
+    if (!selectedServer) throw new Error(`Unsupported Shiro server: ${server}`);
+
     const watchUrl = `${this.shiroBase}/anime/${parsed.mediaId}-${parsed.slug}/${parsed.number}`;
-    console.log(`[Shiro] Resolving episode: AniList ${parsed.mediaId}, episode ${parsed.number}`);
+    console.log(`[Shiro] Resolving ${selectedServer} episode: AniList ${parsed.mediaId}, episode ${parsed.number}`);
     console.log(`[Shiro] Watch URL: ${watchUrl}`);
     const pageResponse = await this.request(watchUrl, { method: "HEAD" });
     console.log(`[Shiro] Watch-page response: ${pageResponse.status} ${pageResponse.statusText || ""}`.trim());
@@ -111,30 +114,33 @@ class Provider {
     console.log(`[Shiro] Episode API status: ${data?.status || "missing"}; variants: ${Array.isArray(data?.variants) ? data.variants.length : 0}`);
     if (data?.status !== "ready") throw new Error(`Shiro episode is not ready: ${data?.status || "unknown"}`);
 
-    const videoSources = [];
-    for (const variant of data.variants || []) {
-      console.log(`[Shiro] Variant ${variant?.label || "unknown"}: ${Array.isArray(variant?.sources) ? variant.sources.length : 0} sources`);
-      for (const source of variant.sources || []) {
-        if (!source.url) continue;
-        videoSources.push({
-          url: this.absoluteUrl(source.url),
-          type: this.sourceType(source.type, source.url),
-          quality: source.label || variant.label || "Auto",
-          label: variant.label,
-          subtitles: (source.tracks || []).filter(track => track.src).map(track => ({
-            id: track.id || track.src,
-            url: this.absoluteUrl(track.src),
-            language: track.language || "und",
-            isDefault: Boolean(track.default),
-          })),
-        });
-      }
+    const variants = Array.isArray(data.variants) ? data.variants : [];
+    for (const variant of variants) {
+      console.log(`[Shiro] Variant ${variant?.label || variant?.id || "unknown"}: ${Array.isArray(variant?.sources) ? variant.sources.length : 0} sources`);
     }
-    console.log(`[Shiro] Parsed ${videoSources.length} video sources`);
-    if (videoSources.length === 0) throw new Error("No Shiro video sources found");
+
+    const variant = variants.find(candidate => this.variantServer(candidate) === selectedServer);
+    const source = variant?.sources?.find(candidate => candidate?.url);
+    if (!source) throw new Error(`No Shiro ${selectedServer.toLowerCase()} video source found`);
+
+    // Shiro can expose several hosts per language. The selected language gets its
+    // first usable host so Sub and Dub remain independent server choices.
+    const videoSources = [{
+      url: this.absoluteUrl(source.url),
+      type: this.sourceType(source.type, source.url),
+      quality: source.label || variant.label || "Auto",
+      label: variant.label || selectedServer,
+      subtitles: (source.tracks || []).filter(track => track.src).map(track => ({
+        id: track.id || track.src,
+        url: this.absoluteUrl(track.src),
+        language: track.language || "und",
+        isDefault: Boolean(track.default),
+      })),
+    }];
+    console.log(`[Shiro] Selected first ${selectedServer} source`);
 
     return {
-      server: "Shiro",
+      server: selectedServer,
       headers: { Referer: watchUrl, Cookie: cookie },
       videoSources,
     };
@@ -183,6 +189,20 @@ class Provider {
     const match = String(id).match(/^(\d+):(\d+):(.+)$/);
     if (!match) return undefined;
     return { mediaId: Number(match[1]), number: Number(match[2]), slug: match[3] };
+  }
+
+  normalizeServer(server) {
+    const value = String(server || "").trim().toLowerCase();
+    if (value === "sub") return "Sub";
+    if (value === "dub") return "Dub";
+    return undefined;
+  }
+
+  variantServer(variant) {
+    const value = String(variant?.id || variant?.label || "").trim().toLowerCase();
+    if (value === "sub") return "Sub";
+    if (value === "dub") return "Dub";
+    return undefined;
   }
 
   slugify(value) {
