@@ -7,7 +7,7 @@
   "type": "manga-provider",
   "description": "English manga provider for xComic.",
   "author": "Pal",
-  "icon": "https://xcomic.me/favicon.ico",
+  "icon": "",
   "website": "https://xcomic.me/",
   "lang": "en",
   "payloadURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/manga/xcomic/provider.js"
