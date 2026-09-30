@@ -40,13 +40,15 @@ class Provider {
     console.log("findEpisodes html length:", html.length);
     console.log("findEpisodes html snippet:", html.slice(0, 500));
 
-    // Match gatea("HASH") and capture the episode number from the following watch2 div
-    const regex = /onclick='gatea\("([a-f0-9]+)"\)'[^>]*>(?:[\s\S]*?)<div[^>]*\bwatch2\b[^>]*>\s*(\d+)\s*<\/div>/g;
+    // Each episode is an anchor with a stable id. The inline gatea handler
+    // contains inconsistent whitespace, so use the anchor id instead.
+    const regex = /<a\b([^>]*\bid\s*=\s*["'][^"']+["'][^>]*)>[\s\S]*?<div[^>]*\bwatch2\b[^>]*>\s*(\d+(?:\.\d+)?)\s*<\/div>[\s\S]*?<\/a>/gi;
     const episodes = [];
     let match;
     while ((match = regex.exec(html)) !== null) {
-      const gateKey = match[1];
-      const number = parseInt(match[2], 10);
+      const gateKey = match[1].match(/\bid\s*=\s*["']([^"']+)["']/i)?.[1];
+      const number = Number.parseFloat(match[2]);
+      if (!gateKey || !Number.isFinite(number)) continue;
       episodes.push({
         id: gateKey,
         title: `Episode ${number}`,
