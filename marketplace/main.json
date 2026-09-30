@@ -583,7 +583,6 @@
     "type": "manga-provider",
     "language": "javascript",
     "lang": "en",
-    "icon": "https://xcomic.me/favicon.ico",
     "website": "https://xcomic.me/"
   }
 ]
