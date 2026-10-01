@@ -47,6 +47,12 @@
       .brand-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
       .brand-link:hover { color: var(--ink); }
       .header-actions { display: flex; align-items: center; gap: 8px; }
+      .menu-wrap { position: relative; }
+      .menu-button { font-size: 19px; line-height: 1; }
+      .site-menu { position: absolute; top: calc(100% + 10px); right: 0; width: 220px; padding: 6px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 18px 40px rgba(0, 0, 0, .35); }
+      .site-menu.hidden { display: none; }
+      .site-menu a { display: block; padding: 10px; border-radius: 7px; color: var(--ink); font-size: 12px; text-decoration: none; }
+      .site-menu a:hover, .site-menu a.active { background: var(--soft); }
       .icon-btn, .text-btn { border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; border-radius: 9px; padding: 8px 10px; transition: .18s ease; }
       .icon-btn:hover, .text-btn:hover { color: var(--ink); background: var(--soft); border-color: var(--line); }
       .hero { padding: 72px 0 44px; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(260px, .85fr); gap: 48px; align-items: end; }
@@ -121,7 +127,7 @@
     <header class="site-header">
       <div class="shell header-row">
         <div class="brand"><span>Community Marketplace <span class="brand-sub">(managed by <a class="brand-link" href="https://github.com/Pal-droid" target="_blank" rel="noopener">@Pal-droid</a>)</span></span></div>
-        <div class="header-actions"><a class="text-btn" href="https://github.com/Seanime-contributions/Seanime-Providers" target="_blank" rel="noopener">GitHub ↗</a><button class="icon-btn" id="settings-btn" type="button" aria-label="Open settings">⚙</button></div>
+        <div class="header-actions"><a class="text-btn" href="https://github.com/Seanime-contributions/Seanime-Providers" target="_blank" rel="noopener">GitHub ↗</a><button class="icon-btn" id="settings-btn" type="button" aria-label="Open settings">⚙</button><div class="menu-wrap"><button class="icon-btn menu-button" id="menu-button" type="button" aria-label="Open menu" aria-expanded="false">☰</button><nav class="site-menu hidden" id="site-menu"><a class="active" href="./">Marketplace</a><a href="./down-detector.html">Extensions down detector</a></nav></div></div>
       </div>
     </header>
 
@@ -240,6 +246,10 @@
       function resetFilters() { state.query = ""; state.author = ""; state.language = ""; $("#search").value = ""; $("#author-filter").value = ""; $("#language-filter").value = ""; render(); }
       function openSettings() { const values = settingValues(); $("#setting-uri").value = values.uri; $("#setting-port").value = values.port; $("#settings-modal").classList.remove("hidden"); $("#setting-uri").focus(); }
       function closeSettings() { $("#settings-modal").classList.add("hidden"); }
+      const menuButton = $("#menu-button");
+      const menu = $("#site-menu");
+      menuButton.addEventListener("click", () => { const hidden = menu.classList.toggle("hidden"); menuButton.setAttribute("aria-expanded", String(!hidden)); });
+      document.addEventListener("click", event => { if (!event.target.closest(".menu-wrap")) { menu.classList.add("hidden"); menuButton.setAttribute("aria-expanded", "false"); } });
 
       window.addEventListener("DOMContentLoaded", () => {
         $$(".tab").forEach(button => button.addEventListener("click", () => { $$(".tab").forEach(tab => tab.classList.remove("active")); button.classList.add("active"); state.category = button.dataset.category; render(); }));
