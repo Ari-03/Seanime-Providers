@@ -1,6 +1,6 @@
 const vm = require("node:vm");
-const https = require("node:https");
 const ts = require("typescript");
+const cheerio = require("cheerio");
 
 const CATALOG_URL = "https://raw.githubusercontent.com/Seanime-contributions/Seanime-Providers/main/marketplace/main.json";
 const DEFAULT_QUERY = "One Piece";
@@ -58,6 +58,56 @@ function errorMessage(error) {
   return message.replace(/https?:\/\/\S+/g, "remote endpoint").slice(0, 220);
 }
 
+// Seanime exposes LoadDoc to providers. This small adapter preserves the
+// DocSelection methods used by the repository while running on Vercel.
+function createDocSelection(nodes, $) {
+  const wrap = value => createDocSelection(value, $);
+  return {
+    attr: name => nodes.first().attr(name),
+    attrs: () => nodes.first().attr() || {},
+    children: selector => wrap(nodes.children(selector)),
+    closest: selector => wrap(nodes.closest(selector)),
+    contents: () => wrap(nodes.contents()),
+    contentsFiltered: selector => wrap(nodes.contents().filter(selector)),
+    data: name => name === undefined ? nodes.first().data() : nodes.first().data(name),
+    each: callback => { nodes.each((index, element) => callback(index, wrap($(element)))); return wrap(nodes); },
+    end: () => wrap(nodes),
+    eq: index => wrap(nodes.eq(index)),
+    filter: predicate => typeof predicate === "function"
+      ? wrap(nodes.filter((index, element) => predicate(index, wrap($(element)))))
+      : wrap(nodes.filter(predicate)),
+    find: selector => wrap(nodes.find(selector)),
+    first: () => wrap(nodes.first()),
+    has: selector => wrap(nodes.has(selector)),
+    text: () => nodes.text(),
+    html: () => nodes.first().html(),
+    is: predicate => typeof predicate === "function"
+      ? nodes.toArray().some((element, index) => predicate(index, wrap($(element))))
+      : nodes.is(predicate),
+    last: () => wrap(nodes.last()),
+    length: nodes.length,
+    map: callback => nodes.toArray().map((element, index) => callback(index, wrap($(element)))),
+    next: selector => wrap(nodes.next(selector)),
+    nextAll: selector => wrap(nodes.nextAll(selector)),
+    nextUntil: selector => wrap(nodes.nextUntil(selector)),
+    not: predicate => typeof predicate === "function"
+      ? wrap(nodes.filter((index, element) => !predicate(index, wrap($(element)))))
+      : wrap(nodes.not(predicate)),
+    parent: selector => wrap(nodes.parent(selector)),
+    parents: selector => wrap(nodes.parents(selector)),
+    parentsUntil: selector => wrap(nodes.parentsUntil(selector)),
+    prev: selector => wrap(nodes.prev(selector)),
+    prevAll: selector => wrap(nodes.prevAll(selector)),
+    prevUntil: selector => wrap(nodes.prevUntil(selector)),
+    siblings: selector => wrap(nodes.siblings(selector)),
+  };
+}
+
+function loadDoc(html) {
+  const $ = cheerio.load(html);
+  return selector => createDocSelection($(selector), $);
+}
+
 function loadProvider(source, sourceUrl) {
   let code = source;
   if (/\.tsx?([?#]|$)/i.test(sourceUrl)) {
@@ -80,9 +130,11 @@ function loadProvider(source, sourceUrl) {
     AbortController,
     TextEncoder,
     TextDecoder,
+    Buffer,
     setTimeout,
     clearTimeout,
     fetch: (url, options) => request(url, options),
+    LoadDoc: loadDoc,
   };
   vm.runInNewContext(`${code}\nmodule.exports = Provider;`, sandbox, { filename: sourceUrl, timeout: 2500 });
   if (typeof sandbox.module.exports !== "function") throw new Error("Provider payload did not define a Provider class");
@@ -145,16 +197,19 @@ async function checkProvider(item, query) {
     }
     if (!Array.isArray(entries) || entries.length === 0) throw new Error("Search succeeded but no content entries were returned");
     result.entries = entries.length;
-
-    // A source-resolution call is intentionally not required for a green result:
-    // it can trigger anti-bot checks or consume a media stream. Search + content
-    // discovery is the stable health signal for a public detector.
     result.status = "up";
     result.phase = "complete";
     result.message = `Search and ${item.type === "manga-provider" ? "chapter" : "episode"} discovery succeeded`;
   } catch (error) {
-    result.status = /timed out/i.test(String(error?.message)) ? "timeout" : "down";
-    result.message = errorMessage(error);
+    const message = errorMessage(error);
+    if (/LoadDoc is not defined|Seanime document helper/i.test(message)) {
+      result.status = "unsupported";
+      result.phase = "runtime";
+      result.message = "Seanime document helper unavailable";
+    } else {
+      result.status = /timed out/i.test(String(error?.message)) ? "timeout" : "down";
+      result.message = message;
+    }
   } finally {
     result.durationMs = Date.now() - startedAt;
   }
@@ -189,12 +244,16 @@ module.exports = async function handler(req, res) {
 
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const query = normalizeQuery(body.query || req.query?.query);
+  const requestedIds = Array.isArray(body.ids)
+    ? body.ids.map(String).slice(0, 100)
+    : String(req.query?.ids || "").split(",").map(value => value.trim()).filter(Boolean).slice(0, 100);
+
   try {
     const catalog = await readJson(CATALOG_URL, "Marketplace catalog");
-    const items = (Array.isArray(catalog) ? catalog : []).filter(item => CONTENT_TYPES.has(item?.type));
+    const items = (Array.isArray(catalog) ? catalog : []).filter(item => CONTENT_TYPES.has(item?.type) && (!requestedIds.length || requestedIds.includes(item.id)));
     const results = await mapWithConcurrency(items, item => checkProvider(item, query), MAX_CONCURRENCY);
     const summary = results.reduce((counts, item) => { counts[item.status] = (counts[item.status] || 0) + 1; return counts; }, {});
-    return res.status(200).json({ query, checkedAt: new Date().toISOString(), total: results.length, summary, results });
+    return res.status(200).json({ query, checkedAt: new Date().toISOString(), total: results.length, selected: requestedIds, summary, results });
   } catch (error) {
     return res.status(502).json({ query, error: errorMessage(error) });
   }
