@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f5f5f3" />
+    <meta name="theme-color" content="#080808" />
     <meta name="description" content="A minimal marketplace for Seanime extensions, providers, and plugins." />
     <title>Seanime / Marketplace</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -11,18 +11,18 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
       :root {
-        --paper: #f5f5f3;
-        --ink: #111111;
-        --muted: #6f6f6b;
-        --line: #d9d9d4;
-        --line-strong: #bdbdb7;
-        --panel: #ffffff;
-        --soft: #ecece8;
-        --accent: #111111;
-        --danger: #a32020;
-        --success: #1d6b43;
+        --paper: #080808;
+        --ink: #f2f2ef;
+        --muted: #989894;
+        --line: #282826;
+        --line-strong: #494946;
+        --panel: #121212;
+        --soft: #1d1d1b;
+        --accent: #f2f2ef;
+        --danger: #d45d5d;
+        --success: #6fc18f;
         --radius: 14px;
-        color-scheme: light;
+        color-scheme: dark;
       }
 
       * { box-sizing: border-box; }
@@ -40,7 +40,7 @@
       a { color: inherit; }
       .mono { font-family: "DM Mono", ui-monospace, SFMono-Regular, monospace; }
       .shell { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
-      .site-header { border-bottom: 1px solid var(--line); background: rgba(245, 245, 243, .92); backdrop-filter: blur(14px); position: sticky; top: 0; z-index: 20; }
+      .site-header { border-bottom: 1px solid var(--line); background: rgba(8, 8, 8, .92); backdrop-filter: blur(14px); position: sticky; top: 0; z-index: 20; }
       .header-row { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
       .brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; font-weight: 800; letter-spacing: -.04em; }
       .brand-mark { width: 30px; height: 30px; display: grid; place-items: center; background: var(--ink); color: var(--paper); border-radius: 8px; font-size: 14px; }
@@ -60,7 +60,7 @@
       .field { position: relative; }
       .field input, .field select { width: 100%; height: 44px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--panel); color: var(--ink); padding: 0 13px; outline: none; transition: .18s ease; }
       .field input { padding-left: 40px; }
-      .field input:focus, .field select:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(17, 17, 17, .08); }
+      .field input:focus, .field select:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(242, 242, 239, .12); }
       .search-icon { position: absolute; left: 14px; top: 13px; color: var(--muted); pointer-events: none; }
       .clear-btn { height: 44px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; }
       .clear-btn:hover { color: var(--ink); background: var(--soft); }
@@ -90,11 +90,11 @@
       .details { margin-top: 13px; border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 7px; }
       .detail { display: flex; justify-content: space-between; gap: 14px; color: var(--muted); font-size: 11px; }
       .detail span:last-child { color: var(--ink); text-align: right; overflow-wrap: anywhere; }
-      .card-footer { min-height: 58px; display: flex; align-items: center; gap: 8px; padding: 11px 18px; border-top: 1px solid var(--line); background: #fcfcfb; }
+      .card-footer { min-height: 58px; display: flex; align-items: center; gap: 8px; padding: 11px 18px; border-top: 1px solid var(--line); background: var(--panel); }
       .action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; border-radius: 7px; padding: 0 10px; border: 1px solid var(--line-strong); background: transparent; color: var(--ink); text-decoration: none; cursor: pointer; font-size: 11px; font-weight: 600; }
       .action:hover { background: var(--soft); }
       .action.install { margin-left: auto; color: var(--paper); background: var(--ink); border-color: var(--ink); }
-      .action.install:hover { background: #333; }
+      .action.install:hover { background: #d7d7d3; }
       .action:disabled { cursor: wait; opacity: .6; }
       .empty, .loading { grid-column: 1 / -1; padding: 72px 20px; text-align: center; border: 1px dashed var(--line-strong); border-radius: var(--radius); color: var(--muted); }
       .empty strong { display: block; color: var(--ink); margin-bottom: 5px; }
@@ -125,17 +125,12 @@
     </header>
 
     <main>
-      <section class="shell hero">
-        <div><div class="eyebrow">Community extensions</div><h1>Find the right<br />extension.</h1><p class="hero-copy">A clean index of providers, plugins, and tools for Seanime. Browse the collection, inspect its manifest details, and install directly.</p></div>
-        <div class="hero-note"><strong id="hero-count">Loading the catalog</strong><span>Manifest details are fetched alongside the marketplace index, so cards stay useful and current.</span></div>
-      </section>
-
       <section class="toolbar" aria-label="Marketplace filters">
         <div class="shell">
           <div class="search-row">
             <label class="field"><span class="search-icon" aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search name, description, author, version…" autocomplete="off" /></label>
             <label class="field"><select id="author-filter" aria-label="Filter by author"><option value="">All authors</option></select></label>
-            <label class="field"><select id="language-filter" aria-label="Filter by extension language"><option value="">All languages</option></select></label>
+            <label class="field"><select id="language-filter" aria-label="Filter by language"><option value="">All languages</option></select></label>
             <button class="clear-btn" id="clear-filters" type="button">Clear filters</button>
           </div>
           <nav class="tabs" aria-label="Extension categories"><button class="tab active" data-category="all" type="button">All</button><button class="tab" data-category="plugin" type="button">Plugins</button><button class="tab" data-category="onlinestream-provider" type="button">Online streams</button><button class="tab" data-category="manga-provider" type="button">Manga</button><button class="tab" data-category="anime-torrent-provider" type="button">Torrents</button></nav>
@@ -146,7 +141,7 @@
       <section class="shell grid" id="extension-grid" aria-live="polite"><div class="loading">Loading the extension catalog…</div></section>
     </main>
 
-    <footer><div class="shell footer-row"><span>Seanime Marketplace · Community maintained</span><a href="https://github.com/Seanime-contributions/Seanime-Providers" target="_blank" rel="noopener">View source on GitHub ↗</a></div></footer>
+    <footer><div class="shell footer-row"><span>Seanime Marketplace · Community maintained</span></div></footer>
 
     <div class="toast" id="toast" role="status"></div>
     <div class="modal-backdrop hidden" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
@@ -156,7 +151,7 @@
     <script>
       const $ = (selector) => document.querySelector(selector);
       const $$ = (selector) => Array.from(document.querySelectorAll(selector));
-      const placeholderDataUrl = "data:image/svg+xml;utf8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100' height='100' fill='#ecece8'/><path d='M50 34v32M34 50h32' stroke='#bdbdb7' stroke-width='3'/></svg>");
+      const placeholderDataUrl = "data:image/svg+xml;utf8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100' height='100' fill='#1d1d1b'/><path d='M50 34v32M34 50h32' stroke='#494946' stroke-width='3'/></svg>");
       const state = { items: [], category: "all", query: "", author: "", language: "" };
       const DEFAULT_URI = "http://localhost";
       const DEFAULT_PORT = "43211";
@@ -189,14 +184,14 @@
       function currentItems() {
         const query = state.query.trim().toLocaleLowerCase();
         return state.items.filter(item => {
-          if (!categoryMatches(item) || (state.author && item.author !== state.author) || (state.language && item.lang !== state.language)) return false;
+          if (!categoryMatches(item) || (state.author && item.author !== state.author) || (state.language && item.contentLanguage !== state.language)) return false;
           const haystack = [item.name, item.id, item.description, item.author, item.type, item.language, item.contentLanguage, item.version, item.website, item.episodeServers, item.supportsDub].map(normalized).join(" ");
           return !query || haystack.includes(query);
         });
       }
 
       function metadataRows(item) {
-        const rows = [["Author", item.author], ["Extension language", item.language], ["Content language", item.contentLanguage], ["Type", typeLabel(item.type)]];
+        const rows = [["Author", item.author], ["Language", item.contentLanguage], ["Extension language", item.language], ["Type", typeLabel(item.type)]];
         if (item.supportsDub !== undefined) rows.push(["Dub support", item.supportsDub ? "Yes" : "No"]);
         if (item.episodeServers) rows.push(["Servers", item.episodeServers]);
         if (item.license) rows.push(["License", item.license]);
@@ -208,7 +203,7 @@
         const article = document.createElement("article"); article.className = "card"; article.style.animationDelay = `${Math.min(index, 12) * 24}ms`;
         const icon = item.icon || placeholderDataUrl;
         const rows = metadataRows(item).map(([key, value]) => `<div class="detail"><span>${escapeHtml(key)}</span><span>${escapeHtml(valueText(value))}</span></div>`).join("");
-        article.innerHTML = `<div class="card-top"><div class="identity"><img class="icon" src="${escapeHtml(icon)}" alt="" loading="lazy" /><div><h2>${escapeHtml(item.name)}</h2><div class="card-id mono">${escapeHtml(item.id || "")}</div></div></div><span class="version mono">v${escapeHtml(valueText(item.version).replace(/^v/i, ""))}</span></div><div class="card-body"><p class="description">${escapeHtml(item.description || "No description available.")}</p><div class="meta"><span class="chip"><b>${escapeHtml(typeLabel(item.type))}</b></span><span class="chip">${escapeHtml(item.language)}</span><span class="chip">${escapeHtml(item.contentLanguage)}</span>${item.manifestLoaded ? '<span class="chip">manifest ✓</span>' : '<span class="chip">catalog data</span>'}</div><div class="details">${rows}</div></div><div class="card-footer"><a class="action" href="${escapeHtml(item.manifestURI || "#")}" target="_blank" rel="noopener">Manifest ↗</a>${item.website ? `<a class="action" href="${escapeHtml(item.website)}" target="_blank" rel="noopener">Website ↗</a>` : ""}<button class="action install" type="button">Install</button></div>`;
+        article.innerHTML = `<div class="card-top"><div class="identity"><img class="icon" src="${escapeHtml(icon)}" alt="" loading="lazy" /><div><h2>${escapeHtml(item.name)}</h2><div class="card-id mono">${escapeHtml(item.id || "")}</div></div></div><span class="version mono">v${escapeHtml(valueText(item.version).replace(/^v/i, ""))}</span></div><div class="card-body"><p class="description">${escapeHtml(item.description || "No description available.")}</p><div class="meta"><span class="chip"><b>${escapeHtml(typeLabel(item.type))}</b></span><span class="chip">${escapeHtml(item.contentLanguage)}</span><span class="chip">${escapeHtml(item.language)}</span>${item.manifestLoaded ? '<span class="chip">manifest ✓</span>' : '<span class="chip">catalog data</span>'}</div><div class="details">${rows}</div></div><div class="card-footer"><a class="action" href="${escapeHtml(item.manifestURI || "#")}" target="_blank" rel="noopener">Manifest ↗</a>${item.website ? `<a class="action" href="${escapeHtml(item.website)}" target="_blank" rel="noopener">Website ↗</a>` : ""}<button class="action install" type="button">Install</button></div>`;
         const image = article.querySelector("img"); image.addEventListener("error", () => { image.src = placeholderDataUrl; });
         article.querySelector(".install").addEventListener("click", () => installExtension(item, article.querySelector(".install")));
         return article;
@@ -234,12 +229,11 @@
           $("#data-status").textContent = `Loading ${rawItems.length} manifests…`;
           state.items = await Promise.all(rawItems.map(async item => enrichItem(item, await getManifest(item))));
           const authors = [...new Set(state.items.map(item => item.author).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-          const languages = [...new Set(state.items.map(item => item.language).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+          const languages = [...new Set(state.items.map(item => item.contentLanguage).filter(Boolean))].sort((a, b) => a.localeCompare(b));
           updateSelect($("#author-filter"), authors, "All authors"); updateSelect($("#language-filter"), languages, "All languages");
-          $("#hero-count").textContent = `${state.items.length} extensions in the catalog`;
-          $("#data-status").textContent = `${state.items.filter(item => item.manifestLoaded).length} manifests parsed · live catalog`;
+          $("#data-status").textContent = `${state.items.length} extensions · ${state.items.filter(item => item.manifestLoaded).length} manifests parsed`;
           render();
-        } catch (error) { console.error(error); $("#hero-count").textContent = "Catalog unavailable"; $("#data-status").textContent = "Could not load marketplace/main.json"; $("#extension-grid").innerHTML = `<div class="empty"><strong>Could not load the catalog.</strong>Try refreshing the page.</div>`; }
+        } catch (error) { console.error(error); $("#data-status").textContent = "Could not load marketplace/main.json"; $("#extension-grid").innerHTML = `<div class="empty"><strong>Could not load the catalog.</strong>Try refreshing the page.</div>`; }
       }
 
       function resetFilters() { state.query = ""; state.author = ""; state.language = ""; $("#search").value = ""; $("#author-filter").value = ""; $("#language-filter").value = ""; render(); }
