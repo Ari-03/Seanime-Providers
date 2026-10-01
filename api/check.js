@@ -157,6 +157,7 @@ async function checkProvider(item, query) {
   try {
     const manifest = await readJson(item.manifestURI, "Manifest");
     result.version = manifest.version || item.version || "—";
+    result.icon = manifest.icon ? new URL(manifest.icon, item.manifestURI).toString() : (item.icon || "");
     result.language = manifest.lang || item.lang || "—";
     result.phase = "payload";
     if (!manifest.payloadURI) throw new Error("Manifest has no payloadURI");
