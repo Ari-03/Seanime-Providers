@@ -53,6 +53,14 @@ function providerTypeLabel(type) {
   })[type] || type;
 }
 
+async function verifyAccessible(url, headers, label) {
+  if (!url) throw new Error(`${label} did not return a URL`);
+  const response = await request(url, { headers: headers || {} });
+  if (!response.ok) throw new Error(`${label} returned HTTP ${response.status}`);
+  if (response.body?.cancel) await response.body.cancel();
+  return response.status;
+}
+
 function errorMessage(error) {
   const message = error instanceof Error ? error.message : String(error);
   return message.replace(/https?:\/\/\S+/g, "remote endpoint").slice(0, 220);
@@ -152,6 +160,11 @@ async function checkProvider(item, query) {
     phase: "manifest",
     message: "Not checked",
     durationMs: 0,
+    checks: {
+      search: { status: "fail", message: "Not checked" },
+      entries: { status: "fail", message: "Not checked" },
+      stream: { status: "fail", message: "Not checked" },
+    },
   };
 
   try {
@@ -167,8 +180,7 @@ async function checkProvider(item, query) {
     const Provider = loadProvider(payload, payloadUrl);
     const provider = new Provider();
     const settings = typeof provider.getSettings === "function" ? await withTimeout(Promise.resolve(provider.getSettings()), OPERATION_TIMEOUT_MS, "getSettings") : {};
-    result.servers = settings?.episodeServers || [];
-    result.phase = "search";
+    result.servers = Array.isArray(settings?.episodeServers) ? settings.episodeServers : [];
 
     if (typeof provider.search !== "function") throw new Error("Provider has no search method");
     const input = {
@@ -178,16 +190,14 @@ async function checkProvider(item, query) {
       dub: false,
       year: undefined,
     };
+    result.phase = "search";
     const matches = await withTimeout(Promise.resolve(provider.search(input)), OPERATION_TIMEOUT_MS, "search");
-    if (!Array.isArray(matches) || matches.length === 0) {
-      result.status = "warning";
-      result.message = "Search returned no results";
-      return result;
-    }
+    if (!Array.isArray(matches) || matches.length === 0) throw new Error("Search returned no results");
     result.match = matches[0]?.title || matches[0]?.name || query;
-    result.phase = "content";
+    result.checks.search = { status: "success", message: `${matches.length} result${matches.length === 1 ? "" : "s"}` };
 
     const firstMatch = matches[0];
+    const entryLabel = item.type === "manga-provider" ? "chapters" : "episodes";
     let entries;
     if (item.type === "manga-provider") {
       if (typeof provider.findChapters !== "function") throw new Error("Provider has no findChapters method");
@@ -196,11 +206,43 @@ async function checkProvider(item, query) {
       if (typeof provider.findEpisodes !== "function") throw new Error("Provider has no findEpisodes method");
       entries = await withTimeout(Promise.resolve(provider.findEpisodes(firstMatch.id)), OPERATION_TIMEOUT_MS, "findEpisodes");
     }
-    if (!Array.isArray(entries) || entries.length === 0) throw new Error("Search succeeded but no content entries were returned");
+    if (!Array.isArray(entries) || entries.length === 0) throw new Error(`Search succeeded but no ${entryLabel} were returned`);
     result.entries = entries.length;
+    result.checks.entries = { status: "success", message: `${entries.length} ${entryLabel}` };
+
+    result.phase = "stream";
+    if (item.type === "manga-provider") {
+      if (typeof provider.findChapterPages !== "function") throw new Error("Provider has no findChapterPages method");
+      const pages = await withTimeout(Promise.resolve(provider.findChapterPages(entries[0].id)), OPERATION_TIMEOUT_MS, "findChapterPages");
+      if (!Array.isArray(pages) || pages.length === 0) throw new Error("findChapterPages returned no pages");
+      const page = pages.find(candidate => candidate?.url) || pages[0];
+      const httpStatus = await withTimeout(verifyAccessible(page?.url, page?.headers, "Chapter page"), REQUEST_TIMEOUT_MS + 1000, "Chapter page check");
+      result.checks.stream = { status: "success", message: `Page accessible (HTTP ${httpStatus})` };
+    } else {
+      if (typeof provider.findEpisodeServer !== "function") throw new Error("Provider has no findEpisodeServer method");
+      if (!result.servers.length) throw new Error("Provider has no episode servers configured");
+      const serverChecks = await Promise.all(result.servers.map(async server => {
+        try {
+          const episodeServer = await withTimeout(Promise.resolve(provider.findEpisodeServer(entries[0], server)), OPERATION_TIMEOUT_MS, `episode server ${server}`);
+          const source = episodeServer?.videoSources?.find(candidate => candidate?.url);
+          const httpStatus = await withTimeout(verifyAccessible(source?.url, episodeServer?.headers, `Episode stream (${server})`), REQUEST_TIMEOUT_MS + 1000, `Episode stream (${server}) check`);
+          return { server, status: "success", httpStatus };
+        } catch (error) {
+          return { server, status: "fail", message: errorMessage(error) };
+        }
+      }));
+      const working = serverChecks.filter(check => check.status === "success");
+      result.checks.stream = {
+        status: working.length ? "success" : "fail",
+        message: `${working.length}/${serverChecks.length} episode server${serverChecks.length === 1 ? "" : "s"} accessible`,
+        servers: serverChecks,
+      };
+      if (!working.length) throw new Error(result.checks.stream.message);
+    }
+
     result.status = "up";
     result.phase = "complete";
-    result.message = `Search and ${item.type === "manga-provider" ? "chapter" : "episode"} discovery succeeded`;
+    result.message = `Search, ${entryLabel}, and ${item.type === "manga-provider" ? "page" : "stream"} checks succeeded`;
   } catch (error) {
     const message = errorMessage(error);
     if (/LoadDoc is not defined|Seanime document helper/i.test(message)) {
@@ -211,6 +253,9 @@ async function checkProvider(item, query) {
       result.status = /timed out/i.test(String(error?.message)) ? "timeout" : "down";
       result.message = message;
     }
+    if (result.checks.search.status !== "success") result.checks.search.message = result.phase === "search" ? message : result.checks.search.message;
+    if (result.checks.entries.status !== "success" && result.checks.search.status === "success") result.checks.entries.message = message;
+    if (result.checks.stream.status !== "success" && result.checks.entries.status === "success") result.checks.stream.message = result.checks.stream.message === "Not checked" ? message : result.checks.stream.message;
   } finally {
     result.durationMs = Date.now() - startedAt;
   }
