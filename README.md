@@ -83,6 +83,14 @@ https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/manga/man
 
 ---
 
+## Test whether an extension works
+
+<img src="https://raw.githubusercontent.com/Seanime-contributions/Seanime-Providers/refs/heads/main/public/uptime_preview.jpg" />
+
+Use **[this page](https://seanime-contributions.github.io/Seanime-Providers/down-detector.html)** to test selected anime and manga extensions with a search query. Returns search, chapter/episodes & stream/page availability.
+
+---
+
 ### Want to suggest more providers?
 > *PR's welcomed!*
 
