@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#080808" />
     <meta name="description" content="A minimal marketplace for Seanime extensions, providers, and plugins." />
-    <title>Seanime / Marketplace</title>
+    <title>Community Marketplace (managed by @Pal-droid)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -42,9 +42,10 @@
       .shell { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
       .site-header { border-bottom: 1px solid var(--line); background: rgba(8, 8, 8, .92); backdrop-filter: blur(14px); position: sticky; top: 0; z-index: 20; }
       .header-row { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-      .brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; font-weight: 800; letter-spacing: -.04em; }
-      .brand-mark { width: 30px; height: 30px; display: grid; place-items: center; background: var(--ink); color: var(--paper); border-radius: 8px; font-size: 14px; }
-      .brand-sub { color: var(--muted); font-weight: 500; }
+      .brand { display: inline-flex; align-items: baseline; text-decoration: none; font-weight: 800; letter-spacing: -.04em; }
+      .brand-sub { color: var(--muted); font-size: 11px; font-weight: 500; letter-spacing: 0; }
+      .brand-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+      .brand-link:hover { color: var(--ink); }
       .header-actions { display: flex; align-items: center; gap: 8px; }
       .icon-btn, .text-btn { border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; border-radius: 9px; padding: 8px 10px; transition: .18s ease; }
       .icon-btn:hover, .text-btn:hover { color: var(--ink); background: var(--soft); border-color: var(--line); }
@@ -113,13 +114,13 @@
       .toast.show { transform: translateY(0); opacity: 1; }
       .toast.error { background: var(--danger); }
       @media (max-width: 860px) { .hero { grid-template-columns: 1fr; gap: 24px; padding-top: 52px; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .search-row { grid-template-columns: 1fr 1fr; } .field:first-child { grid-column: 1 / -1; } }
-      @media (max-width: 560px) { .shell { width: min(100% - 28px, 1180px); } .header-row { min-height: 62px; } .brand-sub { display: none; } h1 { font-size: 3rem; } .grid { grid-template-columns: 1fr; } .search-row { grid-template-columns: 1fr; } .field:first-child { grid-column: auto; } .clear-btn { width: 100%; } .results-bar, .footer-row { align-items: flex-start; flex-direction: column; } }
+      @media (max-width: 560px) { .shell { width: min(100% - 28px, 1180px); } .header-row { min-height: 62px; } .brand-sub { font-size: 10px; } h1 { font-size: 3rem; } .grid { grid-template-columns: 1fr; } .search-row { grid-template-columns: 1fr; } .field:first-child { grid-column: auto; } .clear-btn { width: 100%; } .results-bar, .footer-row { align-items: flex-start; flex-direction: column; } }
     </style>
   </head>
   <body>
     <header class="site-header">
       <div class="shell header-row">
-        <a class="brand" href="."><span class="brand-mark">S</span><span>Seanime <span class="brand-sub">/ Marketplace</span></span></a>
+        <div class="brand"><span>Community Marketplace <span class="brand-sub">(managed by <a class="brand-link" href="https://github.com/Pal-droid" target="_blank" rel="noopener">@Pal-droid</a>)</span></span></div>
         <div class="header-actions"><a class="text-btn" href="https://github.com/Seanime-contributions/Seanime-Providers" target="_blank" rel="noopener">GitHub ↗</a><button class="icon-btn" id="settings-btn" type="button" aria-label="Open settings">⚙</button></div>
       </div>
     </header>
