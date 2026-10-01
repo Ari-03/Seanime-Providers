@@ -8,7 +8,14 @@ const MAX_QUERY_LENGTH = 80;
 const REQUEST_TIMEOUT_MS = 8000;
 const OPERATION_TIMEOUT_MS = 9000;
 const MAX_CONCURRENCY = 12;
+const MAX_EXTENSIONS_PER_REQUEST = 15;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 5;
+const RESULT_CACHE_TTL_MS = 3 * 60 * 1000;
 const CONTENT_TYPES = new Set(["onlinestream-provider", "manga-provider", "anime-torrent-provider"]);
+const rateLimitStore = new Map();
+const activeRequests = new Map();
+const resultCache = new Map();
 
 function withTimeout(promise, timeoutMs, label) {
   let timer;
@@ -43,6 +50,32 @@ async function readText(url, label) {
 function normalizeQuery(value) {
   const query = String(value || DEFAULT_QUERY).trim().replace(/\s+/g, " ");
   return (query || DEFAULT_QUERY).slice(0, MAX_QUERY_LENGTH);
+}
+
+function getClientIp(req) {
+  const forwarded = req.headers?.["x-forwarded-for"] || req.headers?.["X-Forwarded-For"];
+  const candidate = Array.isArray(forwarded) ? forwarded[0] : String(forwarded || "").split(",")[0].trim();
+  return candidate || String(req.headers?.["x-real-ip"] || req.headers?.["X-Real-IP"] || "unknown").trim() || "unknown";
+}
+
+function pruneStores(now) {
+  for (const [ip, timestamps] of rateLimitStore) {
+    const current = timestamps.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW_MS);
+    if (current.length) rateLimitStore.set(ip, current);
+    else rateLimitStore.delete(ip);
+  }
+  for (const [key, entry] of resultCache) {
+    if (entry.expiresAt <= now) resultCache.delete(key);
+  }
+}
+
+function getRateLimitState(ip, now) {
+  const timestamps = (rateLimitStore.get(ip) || []).filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW_MS);
+  return { timestamps, remaining: Math.max(0, RATE_LIMIT_MAX_REQUESTS - timestamps.length) };
+}
+
+function resultCacheKey(query, ids) {
+  return JSON.stringify({ query, ids: [...ids].map(String).sort() });
 }
 
 function providerTypeLabel(type) {
@@ -286,21 +319,63 @@ function setCors(response) {
 module.exports = async function handler(req, res) {
   setCors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
-  if (req.method !== "GET" && req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST, OPTIONS");
+    return res.status(405).json({ error: "Method not allowed. Use POST." });
+  }
 
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const query = normalizeQuery(body.query || req.query?.query);
   const requestedIds = Array.isArray(body.ids)
-    ? body.ids.map(String).slice(0, 100)
-    : String(req.query?.ids || "").split(",").map(value => value.trim()).filter(Boolean).slice(0, 100);
+    ? [...new Set(body.ids.map(String))]
+    : [...new Set(String(req.query?.ids || "").split(",").map(value => value.trim()).filter(Boolean))];
 
+  if (requestedIds.length > MAX_EXTENSIONS_PER_REQUEST) {
+    return res.status(400).json({ error: `Select at most ${MAX_EXTENSIONS_PER_REQUEST} extensions per request.` });
+  }
+
+  const now = Date.now();
+  pruneStores(now);
+  const ip = getClientIp(req);
+  const cacheKey = resultCacheKey(query, requestedIds);
+  const rate = getRateLimitState(ip, now);
+  if (rate.timestamps.length >= RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfter = Math.max(1, Math.ceil((rate.timestamps[0] + RATE_LIMIT_WINDOW_MS - now) / 1000));
+    res.setHeader("Retry-After", String(retryAfter));
+    res.setHeader("X-RateLimit-Limit", String(RATE_LIMIT_MAX_REQUESTS));
+    res.setHeader("X-RateLimit-Remaining", "0");
+    return res.status(429).json({ error: "Too many detector requests. Please try again later.", retryAfter });
+  }
+
+  rate.timestamps.push(now);
+  rateLimitStore.set(ip, rate.timestamps);
+  res.setHeader("X-RateLimit-Limit", String(RATE_LIMIT_MAX_REQUESTS));
+  res.setHeader("X-RateLimit-Remaining", String(Math.max(0, RATE_LIMIT_MAX_REQUESTS - rate.timestamps.length)));
+
+  const cached = resultCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    res.setHeader("X-Detector-Cache", "HIT");
+    return res.status(200).json({ ...cached.payload, cached: true });
+  }
+
+  if (activeRequests.has(ip)) {
+    res.setHeader("Retry-After", "15");
+    return res.status(429).json({ error: "A detector request is already running for this IP. Please wait for it to finish." });
+  }
+
+  activeRequests.set(ip, now);
   try {
     const catalog = await readJson(CATALOG_URL, "Marketplace catalog");
     const items = (Array.isArray(catalog) ? catalog : []).filter(item => CONTENT_TYPES.has(item?.type) && (!requestedIds.length || requestedIds.includes(item.id)));
     const results = await mapWithConcurrency(items, item => checkProvider(item, query), MAX_CONCURRENCY);
     const summary = results.reduce((counts, item) => { counts[item.status] = (counts[item.status] || 0) + 1; return counts; }, {});
-    return res.status(200).json({ query, checkedAt: new Date().toISOString(), total: results.length, selected: requestedIds, summary, results });
+    const payload = { query, checkedAt: new Date().toISOString(), total: results.length, selected: requestedIds, summary, results };
+    resultCache.set(cacheKey, { expiresAt: Date.now() + RESULT_CACHE_TTL_MS, payload });
+    res.setHeader("X-Detector-Cache", "MISS");
+    return res.status(200).json(payload);
   } catch (error) {
     return res.status(502).json({ query, error: errorMessage(error) });
+  } finally {
+    activeRequests.delete(ip);
   }
 };
