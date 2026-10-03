@@ -110,7 +110,7 @@ Or
 
 * [SyntaxSama / FracturedSora](https://github.com/syntaxsama) *(For the source code of the visual marketplace; Original owner of the Anime News, Always Advanced Search, Cookie clicker, Anti-Seeding plugins and Animepahe extension)*
 
-* [Jabi.fx](https://github.com/9lfx/) *(Original author of the [ManhwaWeb](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/manga/ManhwaWeb/manifest.json), [Oneko](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/plugins/oneko/manifest.json), [UI-Translation](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/plugins/UI-Translation/manifest.json), [AnimeAV1](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/anime/AnimeAV1/manifest.json) extensions & plugins.)*
+* [Jabi.fx](https://github.com/9lfx/) *(Original author of the [Oneko](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/plugins/oneko/manifest.json), [UI-Translation](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/plugins/UI-Translation/manifest.json), [AnimeAV1](https://raw.githubusercontent.com/pal-droid/seanime-providers/main/src/anime/AnimeAV1/manifest.json) extensions & plugins.)*
 
 * [Dantotsu](https://discord.gg/MSJvfJzS7R) *(The Anilist activity plugin is inspired by Dantotsu's stories feature.)*
 

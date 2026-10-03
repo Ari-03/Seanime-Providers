@@ -12,18 +12,6 @@
     "website": ""
   },
   {
-    "id": "manhwaweb",
-    "name": "manhwaweb",
-    "description": "Manhwaweb is a spanish manga provider for Seanime",
-    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/manga/ManhwaWeb/manifest.json",
-    "author": "Pal & jabifx",
-    "type": "manga-provider",
-    "language": "javascript",
-    "lang": "es",
-    "icon": "https://raw.githubusercontent.com/pal-droid/seanime-providers/refs/heads/main/public/manhwaweb.png",
-    "website": ""
-  },
-  {
     "id": "donghuastream",
     "name": "DonghuaStream",
     "description": "DonghuaStream is an english donghua sub provider for Seanime",
