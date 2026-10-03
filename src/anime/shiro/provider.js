@@ -42,12 +42,21 @@ class Provider {
           id
           title { romaji english native }
           episodes
+          nextAiringEpisode { episode }
         }
       }
     `;
     const data = await this.anilistRequest(query, { id: mediaId });
     const media = data?.data?.Media;
-    const count = Number(media?.episodes);
+    const knownCount = Number(media?.episodes);
+    // AniList leaves `episodes` null for some ongoing series. In that case,
+    // the next airing episode gives us the number of episodes released so far.
+    const nextAiringEpisode = Number(media?.nextAiringEpisode?.episode);
+    const count = Number.isInteger(knownCount) && knownCount > 0
+      ? knownCount
+      : Number.isInteger(nextAiringEpisode) && nextAiringEpisode > 1
+        ? nextAiringEpisode - 1
+        : 0;
     if (!media || !Number.isInteger(count) || count <= 0) return [];
 
     const title = media.title?.english || media.title?.romaji || media.title?.native || String(mediaId);
@@ -78,7 +87,11 @@ class Provider {
     console.log(`[Shiro] Watch-page raw header keys: ${Object.keys(pageResponse.rawHeaders || {}).join(", ") || "none"}`);
     console.log(`[Shiro] Watch-page cookie keys: ${Object.keys(pageResponse.cookies || {}).join(", ") || "none"}`);
     console.log(`[Shiro] set-cookie header available: ${this.getSetCookieHeader(pageResponse) ? "yes" : "no"}`);
-    const cookie = this.extractCookie(pageResponse);
+    let cookie = this.extractCookie(pageResponse);
+    if (!cookie) {
+      console.log("[Shiro] HTTP response did not expose a watch cookie; using ChromeDP fallback");
+      cookie = await this.getCookieWithBrowser(watchUrl);
+    }
     console.log(`[Shiro] Watch cookie extracted: ${cookie ? "yes" : "no"}`);
     if (!cookie) throw new Error("Shiro watch cookie was not returned");
 
@@ -183,6 +196,51 @@ class Provider {
 
   getSetCookieHeader(response) {
     return response.headers?.get?.("set-cookie") || response.headers?.["set-cookie"];
+  }
+
+  async getCookieWithBrowser(url) {
+    if (typeof ChromeDP === "undefined" || typeof ChromeDP.newBrowser !== "function") {
+      console.log("[Shiro] ChromeDP browser API is unavailable");
+      return undefined;
+    }
+
+    let browser;
+    try {
+      browser = await ChromeDP.newBrowser({ timeout: 30, userAgent: this.userAgent });
+      try {
+        await browser.navigate(url);
+      } catch (error) {
+        // chromedp reports ERR_ABORTED when the page starts a redirect or a
+        // second navigation. The browser still follows that navigation, so
+        // keep the session alive and inspect its final cookie jar below.
+        console.log(`[Shiro] ChromeDP navigation did not complete cleanly; continuing after redirect: ${error?.message || error}`);
+      }
+      // Allow redirects and client-side scripts that set the cookie after load
+      // to finish before querying the browser cookie jar.
+      await browser.sleep(1000);
+      const result = await browser.executeCDP("Network.getAllCookies");
+      const cookies = Array.isArray(result?.cookies) ? result.cookies : [];
+      const cookie = cookies.find(candidate =>
+        candidate?.name === "shiro_watch" || candidate?.name === "shiro-watch"
+      );
+      if (!cookie?.value) {
+        console.log(`[Shiro] ChromeDP found no Shiro cookie (${cookies.length} cookies returned)`);
+        return undefined;
+      }
+      console.log(`[Shiro] ChromeDP extracted ${cookie.name} cookie`);
+      return `${cookie.name}=${cookie.value}`;
+    } catch (error) {
+      console.log(`[Shiro] ChromeDP cookie fallback failed: ${error?.message || error}`);
+      return undefined;
+    } finally {
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (error) {
+          console.log(`[Shiro] Failed to close ChromeDP browser: ${error?.message || error}`);
+        }
+      }
+    }
   }
 
   parseEpisodeId(id) {
