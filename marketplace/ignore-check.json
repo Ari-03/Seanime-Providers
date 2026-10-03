@@ -22,5 +22,9 @@
   {
     "id": "lelmanga",
     "reason": "The website blocks shared IPs from hosting platforms such as Vercel."
+  },
+  {
+    "id": "mynimekumanga",
+    "reason": "The website blocks shared IPs from hosting platforms such as Vercel."
   }
 ]

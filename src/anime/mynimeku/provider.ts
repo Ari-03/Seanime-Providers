@@ -13,43 +13,43 @@ class Provider {
   }
 
   async search(query) {
-    const searchUrl = `${this.baseUrl}/search/${encodeURIComponent(query.query)}/`;
-    const res = await fetch(searchUrl);
-    const html = await res.text();
+    const searchUrl = `${this.baseUrl}/wp-admin/admin-ajax.php`;
+    const body = [
+      `action=${encodeURIComponent("mynimeku_live_search")}`,
+      `nonce=${encodeURIComponent("92e6c9e843")}`,
+      `keyword=${encodeURIComponent(query.query)}`,
+    ].join("&");
 
-    const results = [];
+    const res = await fetch(searchUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Origin": this.baseUrl,
+        "Referer": `${this.baseUrl}/`,
+      },
+      body,
+    });
 
-    // Match full article blocks so we can inspect the type badge
-    const articleRegex = /<article[^>]*class="mynimeku-search-feed__item"[\s\S]*?<\/article>/g;
-    let article;
-    while ((article = articleRegex.exec(html)) !== null) {
-      const block = article[0];
+    if (!res.ok) return [];
 
-      // Skip manga entries (they use /komik/ URLs)
-      if (!block.includes('/series/')) continue;
+    const data = await res.json();
+    const items = data?.success === false ? [] : data?.data?.items ?? [];
+    const seen = new Set();
 
-      const coverMatch = block.match(
-        /<a class="mynimeku-search-feed__cover"[^>]*href="(https:\/\/www\.mynimeku\.com\/series\/[^"]+)"[^>]*aria-label="([^"]+)"/
-      );
-      const imageMatch = block.match(/<img[^>]*src="([^"]+)"/);
-
-      if (!coverMatch) continue;
-
-      const url   = coverMatch[1];
-      const title = coverMatch[2].trim();
-      const image = imageMatch ? imageMatch[1] : "";
-
-      results.push({
-        id: url,
-        title,
-        url,
-        image,
+    return items
+      .filter(item => item?.type !== "MANGA" && typeof item.url === "string" && item.url.includes("/series/"))
+      .filter(item => {
+        if (seen.has(item.url)) return false;
+        seen.add(item.url);
+        return true;
+      })
+      .map(item => ({
+        id: item.url,
+        title: item.title?.trim() || "Unknown",
+        url: item.url,
+        image: item.cover,
         subOrDub: "sub",
-      });
-    }
-
-    if (!results.length) throw new Error("No anime found");
-    return results;
+      }));
   }
 
   async findEpisodes(id) {
