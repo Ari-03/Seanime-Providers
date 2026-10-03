@@ -34,19 +34,36 @@ class Provider {
             const html = await response.text();
             const results = [];
 
-            // Match every manga anchor directly — avoids brittle nested-div counting
-            const anchorRegex = /<a\s+href="(https?:\/\/www\.lelmanga\.com\/manga\/([^"]+))"\s+title="([^"]+)">([\s\S]*?)<\/a>/g;
+            // Match manga anchors inside the `.bs` result cards. Attribute
+            // order and whitespace vary between LelManga responses.
+            const anchorRegex = /<a\b([^>]*?)>([\s\S]*?)<\/a>/gi;
             let match;
+            const seen = new Set();
 
             while ((match = anchorRegex.exec(html)) !== null) {
-                const href  = match[1];
-                const slug  = match[2].replace(/\/$/, '');
-                const title = match[3].trim();
-                const inner = match[4];
+                const attributes = match[1];
+                const inner = match[2];
+                const hrefMatch = attributes.match(/\bhref\s*=\s*["']([^"']+)["']/i);
+                const titleMatch = attributes.match(/\btitle\s*=\s*["']([^"']+)["']/i);
+                if (!hrefMatch || !titleMatch) continue;
+
+                let href;
+                try {
+                    href = new URL(hrefMatch[1], this.api).toString();
+                } catch {
+                    continue;
+                }
+
+                const slugMatch = new URL(href).pathname.match(/\/manga\/([^/]+)\/?$/i);
+                if (!slugMatch) continue;
+                const slug = slugMatch[1];
+                if (seen.has(slug)) continue;
+                seen.add(slug);
+                const title = titleMatch[1].trim();
 
                 // Extract cover image
-                const imgMatch = inner.match(/<img[^>]+src="([^"]+)"/);
-                const image = imgMatch ? imgMatch[1] : undefined;
+                const imgMatch = inner.match(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i);
+                const image = imgMatch ? new URL(imgMatch[1], this.api).toString() : undefined;
 
                 results.push({
                     id: slug,
