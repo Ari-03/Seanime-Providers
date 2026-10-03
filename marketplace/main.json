@@ -48,18 +48,6 @@
     "website": ""
   },
   {
-    "id": "mangacloud",
-    "name": "MangaCloud",
-    "description": "MangaCloud is a manga provider for Seanime",
-    "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/manga/mangacloud/manifest.json",
-    "author": "Pal",
-    "type": "manga-provider",
-    "language": "javascript",
-    "lang": "en",
-    "icon": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/public/mangacloud.png",
-    "website": "https://mangacloud.org"
-  },
-  {
     "id": "mangakatana",
     "name": "MangaKatana",
     "description": "MangaKatana is a manga provider for Seanime",
