@@ -3,6 +3,7 @@ const ts = require("typescript");
 const cheerio = require("cheerio");
 
 const CATALOG_URL = "https://raw.githubusercontent.com/Seanime-contributions/Seanime-Providers/main/marketplace/main.json";
+const IGNORE_CHECK_URL = "https://raw.githubusercontent.com/Seanime-contributions/Seanime-Providers/main/marketplace/ignore-check.json";
 const DEFAULT_QUERY = "One Piece";
 const MAX_QUERY_LENGTH = 80;
 const REQUEST_TIMEOUT_MS = 8000;
@@ -295,6 +296,26 @@ async function checkProvider(item, query) {
   return result;
 }
 
+function ignoredResult(item, reason) {
+  return {
+    id: item.id,
+    name: item.name || item.id,
+    type: providerTypeLabel(item.type),
+    author: item.author || "Unknown",
+    status: "ignored",
+    phase: "ignored",
+    message: reason,
+    durationMs: 0,
+    checks: {
+      search: { status: "ignored", message: "Not tested" },
+      entries: { status: "ignored", message: "Not tested" },
+      stream: { status: "ignored", message: "Not tested" },
+    },
+    version: item.version || "—",
+    icon: item.icon || "",
+  };
+}
+
 async function mapWithConcurrency(items, worker, limit) {
   const results = new Array(items.length);
   let next = 0;
@@ -366,8 +387,17 @@ module.exports = async function handler(req, res) {
   activeRequests.set(ip, now);
   try {
     const catalog = await readJson(CATALOG_URL, "Marketplace catalog");
+    const ignoreConfig = await readJson(IGNORE_CHECK_URL, "Checker ignore list");
+    const ignoreById = new Map(
+      (Array.isArray(ignoreConfig) ? ignoreConfig : [])
+        .filter(entry => entry?.id && entry?.reason)
+        .map(entry => [String(entry.id), String(entry.reason)])
+    );
     const items = (Array.isArray(catalog) ? catalog : []).filter(item => CONTENT_TYPES.has(item?.type) && (!requestedIds.length || requestedIds.includes(item.id)));
-    const results = await mapWithConcurrency(items, item => checkProvider(item, query), MAX_CONCURRENCY);
+    const results = await mapWithConcurrency(items, item => {
+      const reason = ignoreById.get(String(item.id));
+      return reason ? ignoredResult(item, reason) : checkProvider(item, query);
+    }, MAX_CONCURRENCY);
     const summary = results.reduce((counts, item) => { counts[item.status] = (counts[item.status] || 0) + 1; return counts; }, {});
     const payload = { query, checkedAt: new Date().toISOString(), total: results.length, selected: requestedIds, summary, results };
     resultCache.set(cacheKey, { expiresAt: Date.now() + RESULT_CACHE_TTL_MS, payload });
