@@ -48,7 +48,7 @@
     "website": "https://mangakatana.com"
   },
   {
-    "id": "animeAV1",
+    "id": "animeav1",
     "name": "AnimeAV1",
     "description": "AnimeAV1 is an Anime provider for spanish anime for Seanime",
     "manifestURI": "https://raw.githubusercontent.com/Pal-droid/Seanime-Providers/main/src/anime/AnimeAV1/manifest.json",
