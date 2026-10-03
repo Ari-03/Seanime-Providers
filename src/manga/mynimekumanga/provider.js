@@ -6,31 +6,42 @@ class Provider {
   }
 
   async search(query) {
-    const searchUrl = `${this.baseUrl}/search/${encodeURIComponent(query.query)}/`;
-    const res = await fetch(searchUrl);
-    const html = await res.text();
+    const searchUrl = `${this.baseUrl}/wp-admin/admin-ajax.php`;
+    const body = [
+      `action=${encodeURIComponent("mynimeku_live_search")}`,
+      `nonce=${encodeURIComponent("92e6c9e843")}`,
+      `keyword=${encodeURIComponent(query.query)}`,
+    ].join("&");
 
-    const results = [];
-    const regex = /<a class="mynimeku-search-feed__cover"[^>]*href="([^"]+)"[^>]*aria-label="([^"]+)"[^>]*>\s*<img[^>]*src="([^"]+)"/gs;
+    const res = await fetch(searchUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Origin": this.baseUrl,
+        "Referer": `${this.baseUrl}/`,
+      },
+      body,
+    });
 
-    let match;
-    while ((match = regex.exec(html)) !== null) {
-      const url = match[1];
-      const title = match[2].trim();
-      const image = match[3];
+    if (!res.ok) return [];
 
-      if (!url.includes("/komik/")) continue;
+    const data = await res.json();
+    const items = data?.success === false ? [] : data?.data?.items ?? [];
+    const seen = new Set();
 
-      results.push({
-        id: url,
-        title,
-        url,
-        image,
-      });
-    }
-
-    if (!results.length) throw new Error("No manga found");
-    return results;
+    return items
+      .filter(item => item?.type === "MANGA" && typeof item.url === "string" && item.url.includes("/komik/"))
+      .filter(item => {
+        if (seen.has(item.url)) return false;
+        seen.add(item.url);
+        return true;
+      })
+      .map(item => ({
+        id: item.url,
+        title: item.title?.trim() || "Unknown",
+        url: item.url,
+        image: item.cover,
+      }));
   }
 
   async findChapters(id) {
