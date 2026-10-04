@@ -266,17 +266,24 @@ async function checkProvider(item, query) {
         }
       }));
       const working = serverChecks.filter(check => check.status === "success");
+      const streamStatus = working.length === 0
+        ? "fail"
+        : working.length === serverChecks.length
+          ? "success"
+          : "warning";
       result.checks.stream = {
-        status: working.length ? "success" : "fail",
+        status: streamStatus,
         message: `${working.length}/${serverChecks.length} episode server${serverChecks.length === 1 ? "" : "s"} accessible`,
         servers: serverChecks,
       };
       if (!working.length) throw new Error(result.checks.stream.message);
     }
 
-    result.status = "up";
+    result.status = result.checks.stream.status === "warning" ? "warning" : "up";
     result.phase = "complete";
-    result.message = `Search, ${entryLabel}, and ${item.type === "manga-provider" ? "page" : "stream"} checks succeeded`;
+    result.message = result.status === "warning"
+      ? `Search and ${entryLabel} checks succeeded; some episode servers failed`
+      : `Search, ${entryLabel}, and ${item.type === "manga-provider" ? "page" : "stream"} checks succeeded`;
   } catch (error) {
     const message = errorMessage(error);
     if (/LoadDoc is not defined|Seanime document helper/i.test(message)) {
@@ -290,6 +297,13 @@ async function checkProvider(item, query) {
     if (result.checks.search.status !== "success") result.checks.search.message = result.phase === "search" ? message : result.checks.search.message;
     if (result.checks.entries.status !== "success" && result.checks.search.status === "success") result.checks.entries.message = message;
     if (result.checks.stream.status !== "success" && result.checks.entries.status === "success") result.checks.stream.message = result.checks.stream.message === "Not checked" ? message : result.checks.stream.message;
+    const checkStatuses = Object.values(result.checks).map(check => check.status);
+    const passedChecks = checkStatuses.filter(status => status === "success").length;
+    const failedChecks = checkStatuses.filter(status => status === "fail" || status === "timeout").length;
+    if ((result.status === "down" || result.status === "timeout") && passedChecks > 0 && failedChecks > 0) {
+      result.status = "warning";
+      result.message = `Partial check failure: ${message}`;
+    }
   } finally {
     result.durationMs = Date.now() - startedAt;
   }
