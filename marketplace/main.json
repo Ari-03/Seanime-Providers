@@ -360,6 +360,18 @@
     "website": ""
   },
   {
+    "id": "characters-info-plus",
+    "name": "Characters info+",
+    "description": "Show AniList character information in an animated hover card on anime entry pages.",
+    "manifestURI": "https://raw.githubusercontent.com/Seanime-contributions/Seanime-Providers/main/src/plugins/characters-info-plus/manifest.json",
+    "author": "Pal",
+    "type": "plugin",
+    "language": "typescript",
+    "lang": "MULTI",
+    "icon": "https://raw.githubusercontent.com/Seanime-contributions/Seanime-Providers/main/public/char-plus-info.png",
+    "website": ""
+  },
+  {
     "id": "antiseeding",
     "name": "Anti-Seeding",
     "description": "Prevent torrent seeding.",
