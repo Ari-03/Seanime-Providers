@@ -28,7 +28,7 @@ function init() {
     let scanTimer = null;
 
     function onEntryRoute() {
-        return /^\\/entry\\/?$/.test(window.location.pathname)
+        return /^(\/manga)?\/entry\/?$/.test(window.location.pathname)
             && new URLSearchParams(window.location.search).has("id");
     }
 
