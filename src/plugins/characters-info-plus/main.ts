@@ -9,14 +9,14 @@ function init() {
 (function () {
     "use strict";
 
-    const PLUGIN_VERSION = "5";
+    const PLUGIN_VERSION = "6";
     if (window.__charactersInfoPlusVersion === PLUGIN_VERSION) return;
     window.__charactersInfoPlusVersion = PLUGIN_VERSION;
     window.__charactersInfoPlusLoaded = true;
 
-    const STYLE_ID = "characters-info-plus-styles-v5";
-    const TOOLTIP_ID = "characters-info-plus-tooltip-v5";
-    const BOUND_KEY = "cipBoundV5";
+    const STYLE_ID = "characters-info-plus-styles-v6";
+    const TOOLTIP_ID = "characters-info-plus-tooltip-v6";
+    const BOUND_KEY = "cipBoundV6";
     const CARD_SELECTOR = '[data-media-entry-characters-section-grid-item="true"]';
     const LINK_SELECTOR = '[data-media-entry-characters-section-grid-item-content-link="true"]';
     const cache = new Map();
@@ -28,13 +28,13 @@ function init() {
     let scanTimer = null;
 
     function onEntryRoute() {
-        return /^(\/manga)?\/entry\/?$/.test(window.location.pathname)
+        return /^(\\/manga)?\\/entry\\/?$/.test(window.location.pathname)
             && new URLSearchParams(window.location.search).has("id");
     }
 
     function installStyles() {
         if (document.getElementById(STYLE_ID)) return;
-        ["characters-info-plus-styles", "characters-info-plus-styles-v2", "characters-info-plus-styles-v3", "characters-info-plus-styles-v4"].forEach(function (styleId) {
+        ["characters-info-plus-styles", "characters-info-plus-styles-v2", "characters-info-plus-styles-v3", "characters-info-plus-styles-v4", "characters-info-plus-styles-v5"].forEach(function (styleId) {
             const legacyStyle = document.getElementById(styleId);
             if (legacyStyle) legacyStyle.remove();
         });
@@ -90,7 +90,7 @@ function init() {
             #\${TOOLTIP_ID} .cip-more:hover { filter:brightness(1.1); }
             #\${TOOLTIP_ID} .cip-loading { color:#fff; opacity:.7; font-size:12px; }
             #\${TOOLTIP_ID} .cip-error { color:#fff; opacity:.8; font-size:12px; }
-            #characters-info-plus-tooltip, #characters-info-plus-tooltip-v2, #characters-info-plus-tooltip-v3, #characters-info-plus-tooltip-v4 { display:none !important; }
+            #characters-info-plus-tooltip, #characters-info-plus-tooltip-v2, #characters-info-plus-tooltip-v3, #characters-info-plus-tooltip-v4, #characters-info-plus-tooltip-v5 { display:none !important; }
         \`;
         document.head.appendChild(style);
     }
