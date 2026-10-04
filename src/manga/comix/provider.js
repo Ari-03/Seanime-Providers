@@ -27,6 +27,11 @@ const SNAPSHOT_REJECTED_KEY = "comix:snapshot-rejected";
 const CAPTURE_LEASE_KEY = "comix:capture-lease";
 const CAPTURE_FAILURE_KEY = "comix:capture-failure";
 
+// Transient failures (network, 5xx, 429) get one retry after a short pause.
+const SEND_ATTEMPTS = 2;
+const RETRY_DELAY_MS = 1000;
+const MAX_RETRY_DELAY_MS = 3000;
+
 const CHAPTERS_PER_PAGE = 100;
 const MAX_CHAPTER_PAGES = 200;
 // Chapter pages are fetched in small parallel batches, paced to about 5 requests per second.
@@ -355,6 +360,18 @@ function requireList(value, label, field) {
     throw fail(`Comix: ${label} returned no ${field} list. The response was cut off or the API changed; retry, or wait for an extension update.`);
 }
 
+/** True when a response is Cloudflare's challenge page rather than comix.to's API. */
+function isCloudflareChallenge(response, text) {
+    const headers = response.headers || {};
+    return headers["Cf-Mitigated"] === "challenge" || /<title>\s*just a moment|challenge-platform/i.test(text);
+}
+
+/** Pause before retrying: Retry-After seconds when given, capped at 3s, otherwise 1s. */
+function retryDelayMs(response) {
+    const seconds = parseInt(((response && response.headers) || {})["Retry-After"], 10);
+    return isNaN(seconds) ? RETRY_DELAY_MS : Math.min(Math.max(seconds, 0) * 1000, MAX_RETRY_DELAY_MS);
+}
+
 /**
  * True for https URLs on comix.to or one of its subdomains, without userinfo. Goja's URL follows
  * Go's net/url, the parser Seanime's image proxy connects with, so both agree on the host.
@@ -371,6 +388,13 @@ function isComixUrl(value) {
     return url.protocol === "https:" && !url.username && !url.password
         && (host === "comix.to" || host.endsWith(".comix.to"));
 }
+
+/**
+ * The capture running in this VM, if any. Requests that share a VM (a chapter batch runs its pages
+ * concurrently in one VM) await it instead of polling the $store lease: $sleep blocks the whole
+ * VM, which would stop the capture they are waiting for from ever finishing.
+ */
+let inFlightCapture = null;
 
 class Provider {
 
@@ -402,21 +426,38 @@ class Provider {
 
     /**
      * Sends a GET to comix.to with the user's clearance cookie and matching User-Agent.
-     * Network failures reject with a Go error object, so they are turned into a readable string.
+     * A failure that looks transient (network or TLS error, HTTP 5xx, 429) is retried once after a
+     * short pause; everything else is returned for checkResponse to classify. Network failures
+     * reject with a Go error object, so they are turned into a readable string.
      */
     async send(url, credentials, label) {
-        try {
-            return await fetch(url, {
-                headers: {
-                    "User-Agent": credentials.userAgent,
-                    "Cookie": `cf_clearance=${credentials.cookie}`,
-                    "Accept": "application/json, text/plain, */*",
-                },
-            });
-        }
-        catch (e) {
-            const reason = errorText(e).replace(/^Get "[^"]*":\s*/, "");
-            throw fail(`Comix: could not reach comix.to for ${label} (${reason}). Check the Seanime host's connection and retry.`);
+        for (let attempt = 1; ; attempt++) {
+            let response = null;
+            let reason = "";
+            try {
+                response = await fetch(url, {
+                    headers: {
+                        "User-Agent": credentials.userAgent,
+                        "Cookie": `cf_clearance=${credentials.cookie}`,
+                        "Accept": "application/json, text/plain, */*",
+                    },
+                });
+                const transient = response.status === 429 || response.status >= 500;
+                if (!transient || isCloudflareChallenge(response, response.text())) return response;
+                reason = `HTTP ${response.status}`;
+            }
+            catch (e) {
+                reason = errorText(e).replace(/^Get "[^"]*":\s*/, "");
+            }
+
+            if (attempt >= SEND_ATTEMPTS) {
+                if (response) return response;
+                throw fail(`Comix: could not reach comix.to for ${label} (${reason}). Check the Seanime host's connection and retry.`);
+            }
+            const delay = retryDelayMs(response);
+            console.warn(`Comix: ${label} failed (${reason}); retrying in ${delay} ms`);
+            // $sleep blocks this VM; the pause is short and capped, so it only delays siblings.
+            $sleep(delay);
         }
     }
 
@@ -435,8 +476,7 @@ class Provider {
      */
     checkResponse(response, text, label) {
         if (response.status === 200) return null;
-        const headers = response.headers || {};
-        if (headers["Cf-Mitigated"] === "challenge" || /<title>\s*just a moment|challenge-platform/i.test(text)) {
+        if (isCloudflareChallenge(response, text)) {
             throw fail(`${MESSAGES.cloudflare} (HTTP ${response.status} on ${label})`);
         }
         if (/captcha_required/.test(text)) throw fail(MESSAGES.waf);
@@ -552,13 +592,19 @@ class Provider {
             return cacheMaterial(snapshot);
         }
 
-        return this.captureOnce(credentials, rejected);
+        if (!inFlightCapture) {
+            inFlightCapture = this.captureOnce(credentials, rejected).finally(() => {
+                inFlightCapture = null;
+            });
+        }
+        return inFlightCapture;
     }
 
     /**
      * Captures material with Chrome, one capture at a time across the extension's VMs. The first
-     * caller takes a lease in $store and captures; the others wait for its material or its error
-     * instead of launching their own Chrome.
+     * caller takes a lease in $store and captures; callers in other VMs wait for its material or
+     * its error instead of launching their own Chrome. Only one call per VM gets here (see
+     * inFlightCapture), so the blocking poll below never stalls a capture in its own VM.
      */
     async captureOnce(credentials, rejected) {
         const owner = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -901,9 +947,9 @@ class Provider {
      * Finds all English chapters, sorted ascending. Any failed or malformed page fails the whole
      * call, because Seanime caches the list it gets and a partial one would hide chapters.
      *
-     * Paging continues while the last page fetched was full, whatever the metadata says. The
-     * declared `lastPage` only lets pages it covers be fetched in parallel batches; past it, or
-     * without it, pages are fetched one at a time until a short or empty page.
+     * Paging always reaches a valid declared `lastPage`, fetching those pages in parallel batches,
+     * and then continues one page at a time while the last page fetched was full. So neither a
+     * short page before `lastPage` nor missing or understated metadata can cut the list short.
      */
     async findChapters(mangaId) {
         const manga = this.normalizeMangaId(mangaId);
@@ -927,7 +973,7 @@ class Provider {
         }
 
         let page = 1;
-        while (lastPageFull) {
+        while (page < declared || lastPageFull) {
             if (page >= MAX_CHAPTER_PAGES) {
                 throw fail(`Comix: ${path} still had full pages after ${MAX_CHAPTER_PAGES} pages. Refusing to return a partial chapter list; wait for an extension update.`);
             }
@@ -948,7 +994,7 @@ class Provider {
             page = batchEnd;
 
             const wait = pages.length * MIN_MS_PER_REQUEST - (Date.now() - started);
-            if (wait > 0 && lastPageFull) $sleep(wait);
+            if (wait > 0 && (page < declared || lastPageFull)) $sleep(wait);
         }
 
         // Pages can shift while new chapters are published, so drop repeated chapter ids.

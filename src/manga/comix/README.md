@@ -27,7 +27,7 @@ Optional, but it saves you from waiting on extension updates.
 
 The signing keys live in the site's obfuscated JavaScript and change when comix.to ships a new build. The extension bundles the keys for the current build, `tmboun`, so it works without Chrome until the site rotates them.
 
-After a rotation the site starts rejecting the old keys. If Google Chrome or Chromium is installed on the machine running Seanime, the extension opens comix.to in headless Chrome with your cookie, reads the new keys while the page decodes them, and carries on. That takes about two seconds, and requests that arrive meanwhile wait for the same capture instead of starting their own Chrome. While capturing, Chrome skips images and third-party fonts and analytics. Without Chrome you get an error asking you to install it or wait for an extension update.
+After a rotation the site starts rejecting the old keys. If Google Chrome or Chromium is installed on the machine running Seanime, the extension opens comix.to in headless Chrome with your cookie, reads the new keys while the page decodes them, and carries on. That takes about two seconds. Requests that arrive meanwhile wait for that one capture instead of starting their own Chrome, including the parallel page requests of a chapter list that is still loading. While capturing, Chrome skips images and third-party fonts and analytics. Without Chrome you get an error asking you to install it or wait for an extension update.
 
 Seanime finds Chrome at `/Applications/Google Chrome.app` or `/Applications/Chromium.app` on macOS, in the default install folders on Windows, and as `chromium` or `google-chrome` on the `PATH` on Linux.
 
@@ -39,7 +39,7 @@ The extension reports problems in Seanime's error message and logs. It doesn't r
 - **comix.to's firewall wants a captcha.** Open comix.to in your browser, solve the check, wait a minute and retry.
 - **Chrome could not start.** The keys rotated and Chrome isn't installed. Install it or wait for an update.
 - **Chrome stopped while capturing.** Chrome crashed or was killed mid-capture. Retry, and check that Chrome runs on the Seanime host.
-- **Could not reach comix.to.** A network failure between Seanime and comix.to. Retry once the connection is back.
+- **Could not reach comix.to.** A network failure between Seanime and comix.to that persisted through one automatic retry. Network errors, HTTP 5xx and HTTP 429 are each retried once after a pause of up to 3 seconds. Retry once the connection is back.
 - **Returned an error or no list.** comix.to answered, but not with the expected data. Nothing is cached, so retrying is safe; if it persists, the API changed.
 - **Still rejects requests after refreshing.** The site changed how it signs requests. The extension needs an update.
 
