@@ -24,6 +24,8 @@ const IMAGE_ACCEPT = "image/avif,image/webp,image/apng,image/*,*/*;q=0.8";
 const MATERIAL_KEY = "comix:material";
 const SITE_BUILD_KEY = "comix:site-build";
 const SNAPSHOT_REJECTED_KEY = "comix:snapshot-rejected";
+const CAPTURE_LEASE_KEY = "comix:capture-lease";
+const CAPTURE_FAILURE_KEY = "comix:capture-failure";
 
 const CHAPTERS_PER_PAGE = 100;
 const MAX_CHAPTER_PAGES = 200;
@@ -33,10 +35,24 @@ const MIN_MS_PER_REQUEST = 200;
 
 const CAPTURE_URL = `${SITE_URL}/browse?keyword=a`;
 const CAPTURE_POLL_MS = 500;
-const CAPTURE_POLL_LIMIT = 60;
+// Wall-clock budget for one capture once Chrome is up. Each CDP step is also capped at
+// BROWSER_STEP_TIMEOUT_S, so a hung renderer overshoots the budget by at most one step.
+const CAPTURE_DEADLINE_MS = 40000;
+const BROWSER_STEP_TIMEOUT_S = 20;
 // A Cloudflare challenge page that lasts this many polls will not clear for an automated Chrome.
 const CHALLENGE_POLL_LIMIT = 20;
 const CHALLENGE_TITLE = /just a moment|attention required/i;
+// Only one VM captures at a time. The lease outlives the slowest capture (budget, one hung step,
+// start-up and close); waiting requests poll for its result.
+const CAPTURE_LEASE_MS = CAPTURE_DEADLINE_MS + 2 * BROWSER_STEP_TIMEOUT_S * 1000 + 10000;
+const LEASE_CONFIRM_MS = 50;
+const LEASE_POLL_MS = 250;
+// Requests Chrome skips while capturing: third-party fonts and analytics, and images. Only
+// comix.to's own scripts are needed to decode the keys.
+const CAPTURE_BLOCKED_URLS = [
+    "*fonts.googleapis.com*", "*fonts.gstatic.com*", "*cloudflareinsights.com*", "*whos.amung.us*",
+    "*.png*", "*.jpg*", "*.jpeg*", "*.webp*", "*.gif*", "*.svg*", "*.ico*", "*.woff*", "*.woff2*",
+];
 
 // Initial feedback byte of each cipher round.
 const FEEDBACK = [189, 133, 32];
@@ -94,6 +110,8 @@ const MESSAGES = {
     waf: "Comix: comix.to's firewall wants a captcha (captcha_required). Open https://comix.to in your browser, solve the check, wait a minute, then retry.",
     rateLimited: "Comix: comix.to is rate limiting requests (HTTP 429). Wait a minute, then retry.",
     noChrome: "Comix: the site's signing keys changed and must be refreshed with Chrome, but Chrome could not start. Install Google Chrome or Chromium on the Seanime host, or wait for an extension update.",
+    chromeFailed: "Comix: Chrome stopped while capturing the comix.to signing keys. Retry, or check that Chrome or Chromium runs on the Seanime host.",
+    captureWait: "Comix: timed out waiting for another request to refresh the comix.to signing keys. Retry.",
     stillRejected: "Comix: comix.to still rejects requests after refreshing the signing keys. The site probably changed its signing scheme; wait for an extension update.",
 };
 
@@ -284,17 +302,22 @@ function materialFromCaptures(captures) {
 // Material cache. Values are stored as JSON strings so they never cross VMs as Go-backed objects.
 // ---------------------------------------------------------------------------------------------
 
-/** Reads cached material from $store, or null. */
-function readCachedMaterial() {
-    const raw = $store.get(MATERIAL_KEY);
+/** Reads a JSON string value from $store, or null. */
+function readStoredJson(key) {
+    const raw = $store.get(key);
     if (typeof raw !== "string" || !raw) return null;
     try {
-        const material = JSON.parse(raw);
-        return isValidMaterial(material) ? material : null;
+        return JSON.parse(raw);
     }
     catch (e) {
         return null;
     }
+}
+
+/** Reads cached material from $store, or null. */
+function readCachedMaterial() {
+    const material = readStoredJson(MATERIAL_KEY);
+    return isValidMaterial(material) ? material : null;
 }
 
 /** Caches material in $store and returns it. */
@@ -316,6 +339,26 @@ function fail(message) {
 /** Turns a thrown value (JS or Go error) into a short string. */
 function errorText(error) {
     return String((error && error.message) || error).slice(0, 300);
+}
+
+/** Names a request for error messages, e.g. "/manga/pvry/chapters page 2". */
+function describeRequest(path, params) {
+    return params && params.page ? `${path} page ${params.page}` : path;
+}
+
+/**
+ * Returns `value` when it is an array. Anything else means a cut-off or changed response, which
+ * must fail loudly: Seanime caches whatever list a provider returns.
+ */
+function requireList(value, label, field) {
+    if (Array.isArray(value)) return value;
+    throw fail(`Comix: ${label} returned no ${field} list. The response was cut off or the API changed; retry, or wait for an extension update.`);
+}
+
+/** True for https URLs on comix.to or one of its subdomains. */
+function isComixUrl(url) {
+    const match = /^https:\/\/([^/?#:]+)/i.exec(String(url || ""));
+    return !!match && /(^|\.)comix\.to$/i.test(match[1]);
 }
 
 class Provider {
@@ -346,15 +389,24 @@ class Provider {
         return { cookie, userAgent };
     }
 
-    /** Sends a GET to comix.to with the user's clearance cookie and matching User-Agent. */
-    async send(url, credentials) {
-        return fetch(url, {
-            headers: {
-                "User-Agent": credentials.userAgent,
-                "Cookie": `cf_clearance=${credentials.cookie}`,
-                "Accept": "application/json, text/plain, */*",
-            },
-        });
+    /**
+     * Sends a GET to comix.to with the user's clearance cookie and matching User-Agent.
+     * Network failures reject with a Go error object, so they are turned into a readable string.
+     */
+    async send(url, credentials, label) {
+        try {
+            return await fetch(url, {
+                headers: {
+                    "User-Agent": credentials.userAgent,
+                    "Cookie": `cf_clearance=${credentials.cookie}`,
+                    "Accept": "application/json, text/plain, */*",
+                },
+            });
+        }
+        catch (e) {
+            const reason = errorText(e).replace(/^Get "[^"]*":\s*/, "");
+            throw fail(`Comix: could not reach comix.to for ${label} (${reason}). Check the Seanime host's connection and retry.`);
+        }
     }
 
     /** Builds the full API URL with the `_` signature for `path` (without /api/v1). */
@@ -370,26 +422,41 @@ class Provider {
      * Classifies a non-success response. Returns "token" for a rejected signature (refreshable);
      * throws an actionable error for everything else.
      */
-    checkResponse(response, text, path) {
+    checkResponse(response, text, label) {
         if (response.status === 200) return null;
         const headers = response.headers || {};
         if (headers["Cf-Mitigated"] === "challenge" || /<title>\s*just a moment|challenge-platform/i.test(text)) {
-            throw fail(`${MESSAGES.cloudflare} (HTTP ${response.status} on ${path})`);
+            throw fail(`${MESSAGES.cloudflare} (HTTP ${response.status} on ${label})`);
         }
         if (/captcha_required/.test(text)) throw fail(MESSAGES.waf);
         if (/(Missing|Invalid) token/i.test(text)) return "token";
         if (response.status === 429) throw fail(MESSAGES.rateLimited);
-        throw fail(`Comix: HTTP ${response.status} from ${path}: ${text.slice(0, 120)}`);
+        throw fail(`Comix: HTTP ${response.status} from ${label}: ${text.slice(0, 120)}`);
+    }
+
+    /**
+     * Throws for an application error inside an HTTP 200 body, such as {"status":"error"} or
+     * {"error":"captcha_required"}. Successful bodies carry {"status":"ok"}.
+     */
+    checkEnvelope(body, label) {
+        if (!body || typeof body !== "object" || Array.isArray(body)) {
+            throw fail(`Comix: ${label} returned an unexpected response.`);
+        }
+        if (!body.error && (body.status === undefined || body.status === "ok")) return body;
+
+        const detail = JSON.stringify({ status: body.status, error: body.error, message: body.message });
+        if (/captcha_required/i.test(detail)) throw fail(MESSAGES.waf);
+        throw fail(`Comix: ${label} returned an error: ${detail.slice(0, 200)}`);
     }
 
     /** Parses an API body, decrypting `{e}` payloads. Returns undefined when decryption fails. */
-    decodeBody(text, material, path) {
+    decodeBody(text, material, label) {
         let root;
         try {
             root = JSON.parse(text);
         }
         catch (e) {
-            throw fail(`Comix: unexpected non-JSON response from ${path}: ${text.slice(0, 120)}`);
+            throw fail(`Comix: unexpected non-JSON response from ${label}: ${text.slice(0, 120)}`);
         }
         if (!root || typeof root.e !== "string") return root;
         try {
@@ -422,24 +489,25 @@ class Provider {
     async apiGet(path, params) {
         const credentials = this.readCredentials();
         const entries = canonicalEntries(params || {});
+        const label = describeRequest(path, params);
         let rejected = null;
 
         for (let attempt = 0; attempt < 2; attempt++) {
             const material = await this.getMaterial(credentials, rejected);
-            const response = await this.send(this.signedUrl(path, entries, material), credentials);
+            const response = await this.send(this.signedUrl(path, entries, material), credentials, label);
             const text = response.text();
             this.noteBuild(response, material);
 
-            if (this.checkResponse(response, text, path) === "token") {
-                console.warn(`Comix: ${path} rejected the request token (${text.slice(0, 60)})`);
+            if (this.checkResponse(response, text, label) === "token") {
+                console.warn(`Comix: ${label} rejected the request token (${text.slice(0, 60)})`);
                 rejected = material;
                 continue;
             }
 
-            const body = this.decodeBody(text, material, path);
-            if (body !== undefined) return body;
+            const body = this.decodeBody(text, material, label);
+            if (body !== undefined) return this.checkEnvelope(body, label);
 
-            console.warn(`Comix: could not decrypt the response from ${path}`);
+            console.warn(`Comix: could not decrypt the response from ${label}`);
             rejected = material;
         }
 
@@ -473,7 +541,55 @@ class Provider {
             return cacheMaterial(snapshot);
         }
 
-        return cacheMaterial(await this.captureMaterial(credentials));
+        return this.captureOnce(credentials, rejected);
+    }
+
+    /**
+     * Captures material with Chrome, one capture at a time across the extension's VMs. The first
+     * caller takes a lease in $store and captures; the others wait for its material or its error
+     * instead of launching their own Chrome.
+     */
+    async captureOnce(credentials, rejected) {
+        const owner = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+        const waitingSince = Date.now();
+        const giveUpAt = waitingSince + CAPTURE_LEASE_MS + 5000;
+
+        while (Date.now() < giveUpAt) {
+            if (this.takeCaptureLease(owner)) {
+                try {
+                    return cacheMaterial(await this.captureMaterial(credentials));
+                }
+                catch (e) {
+                    $store.set(CAPTURE_FAILURE_KEY, JSON.stringify({ at: Date.now(), message: errorText(e) }));
+                    throw e;
+                }
+                finally {
+                    const lease = readStoredJson(CAPTURE_LEASE_KEY);
+                    if (lease && lease.owner === owner) $store.remove(CAPTURE_LEASE_KEY);
+                }
+            }
+
+            $sleep(LEASE_POLL_MS);
+            const material = readCachedMaterial();
+            if (material && (!rejected || material.id !== rejected.id)) return material;
+            const failure = readStoredJson(CAPTURE_FAILURE_KEY);
+            if (failure && failure.at >= waitingSince) throw fail(failure.message);
+        }
+        throw fail(MESSAGES.captureWait);
+    }
+
+    /**
+     * Takes the capture lease when nobody holds a live one. $store has no compare-and-set, so the
+     * lease is written, then re-read after a short pause; the last writer wins and the rest wait.
+     */
+    takeCaptureLease(owner) {
+        const lease = readStoredJson(CAPTURE_LEASE_KEY);
+        if (lease && lease.until > Date.now()) return false;
+
+        $store.set(CAPTURE_LEASE_KEY, JSON.stringify({ owner, until: Date.now() + CAPTURE_LEASE_MS }));
+        $sleep(LEASE_CONFIRM_MS);
+        const confirmed = readStoredJson(CAPTURE_LEASE_KEY);
+        return !!confirmed && confirmed.owner === owner;
     }
 
     /** Decodes and self-tests the bundled snapshot. Null when it is absent, rejected or for another build. */
@@ -507,65 +623,89 @@ class Provider {
         console.log("Comix: capturing cipher material with Chrome");
         let browser = null;
         try {
-            browser = await ChromeDP.newBrowser({ userAgent: credentials.userAgent, headless: true, timeout: 30 });
+            browser = await ChromeDP.newBrowser({ userAgent: credentials.userAgent, headless: true, timeout: BROWSER_STEP_TIMEOUT_S });
         }
         catch (e) {
             throw fail(`${MESSAGES.noChrome} (${errorText(e)})`);
         }
 
         try {
-            // Chrome runs with navigator.webdriver = true, so Cloudflare only lets it through
-            // with the user's clearance cookie and the matching User-Agent.
-            await browser.executeCDP("Network.setCookie", {
-                name: "cf_clearance",
-                value: credentials.cookie,
-                domain: ".comix.to",
-                path: "/",
-                secure: true,
-                httpOnly: true,
-            });
-            await browser.executeCDP("Page.addScriptToEvaluateOnNewDocument", { source: ATOB_HOOK });
-            try {
-                await browser.navigate(CAPTURE_URL);
-            }
-            catch (e) {
-                console.warn(`Comix: Chrome navigation did not finish cleanly (${errorText(e)}); still polling`);
-            }
-
-            let state = { title: "", build: "", captures: [] };
-            let challengePolls = 0;
-            for (let i = 0; i < CAPTURE_POLL_LIMIT && challengePolls < CHALLENGE_POLL_LIMIT; i++) {
-                try {
-                    state = JSON.parse(await browser.evaluate(CAPTURE_STATE));
-                }
-                catch (e) {
-                    // The page may be mid-navigation (Cloudflare redirect); poll again.
-                }
-                const material = materialFromCaptures(state.captures || []);
-                if (material) {
-                    const capturedAt = new Date().toISOString();
-                    console.log(`Comix: captured cipher material for build ${state.build || "unknown"}`);
-                    return {
-                        id: `chrome@${capturedAt}`,
-                        source: "chrome",
-                        buildId: state.build || "",
-                        capturedAt,
-                        sboxes: material.sboxes,
-                        keys: material.keys,
-                    };
-                }
-                challengePolls = CHALLENGE_TITLE.test(state.title || "") ? challengePolls + 1 : 0;
-                await browser.sleep(CAPTURE_POLL_MS);
-            }
-
-            if (CHALLENGE_TITLE.test(state.title || "")) {
-                throw fail(`${MESSAGES.cloudflare} (Chrome was stopped by the challenge page)`);
-            }
-            throw fail(`Comix: Chrome loaded comix.to ("${state.title}") but the site never decoded its signing keys. The site changed how it ships them; wait for an extension update.`);
+            return await this.readMaterialFromPage(browser, credentials);
+        }
+        catch (e) {
+            // Classified failures are already strings. Anything else is Chrome or CDP failing.
+            if (typeof e === "string") throw e;
+            throw fail(`${MESSAGES.chromeFailed} (${errorText(e)})`);
         }
         finally {
-            await browser.close();
+            try {
+                await browser.close();
+            }
+            catch (e) {
+                // Keep the capture's own outcome; a failed close has nothing useful to add.
+            }
         }
+    }
+
+    /** Loads comix.to in `browser` and polls the atob captures until three S-boxes and keys appear. */
+    async readMaterialFromPage(browser, credentials) {
+        const deadline = Date.now() + CAPTURE_DEADLINE_MS;
+
+        // Chrome runs with navigator.webdriver = true, so Cloudflare only lets it through
+        // with the user's clearance cookie and the matching User-Agent.
+        await browser.executeCDP("Network.setCookie", {
+            name: "cf_clearance",
+            value: credentials.cookie,
+            domain: ".comix.to",
+            path: "/",
+            secure: true,
+            httpOnly: true,
+        });
+        try {
+            await browser.executeCDP("Network.enable", {});
+            await browser.executeCDP("Network.setBlockedURLs", { urls: CAPTURE_BLOCKED_URLS });
+        }
+        catch (e) {
+            console.warn(`Comix: could not block third-party requests during capture (${errorText(e)})`);
+        }
+        await browser.executeCDP("Page.addScriptToEvaluateOnNewDocument", { source: ATOB_HOOK });
+        try {
+            await browser.navigate(CAPTURE_URL);
+        }
+        catch (e) {
+            console.warn(`Comix: Chrome navigation did not finish cleanly (${errorText(e)}); still polling`);
+        }
+
+        let state = { title: "", build: "", captures: [] };
+        let challengePolls = 0;
+        while (Date.now() < deadline && challengePolls < CHALLENGE_POLL_LIMIT) {
+            try {
+                state = JSON.parse(await browser.evaluate(CAPTURE_STATE));
+            }
+            catch (e) {
+                // The page may be mid-navigation (Cloudflare redirect); poll again.
+            }
+            const material = materialFromCaptures(state.captures || []);
+            if (material) {
+                const capturedAt = new Date().toISOString();
+                console.log(`Comix: captured cipher material for build ${state.build || "unknown"}`);
+                return {
+                    id: `chrome@${capturedAt}`,
+                    source: "chrome",
+                    buildId: state.build || "",
+                    capturedAt,
+                    sboxes: material.sboxes,
+                    keys: material.keys,
+                };
+            }
+            challengePolls = CHALLENGE_TITLE.test(state.title || "") ? challengePolls + 1 : 0;
+            await browser.sleep(CAPTURE_POLL_MS);
+        }
+
+        if (CHALLENGE_TITLE.test(state.title || "")) {
+            throw fail(`${MESSAGES.cloudflare} (Chrome was stopped by the challenge page)`);
+        }
+        throw fail(`Comix: Chrome loaded comix.to ("${state.title}") but the site never decoded its signing keys. The site changed how it ships them; wait for an extension update.`);
     }
 
     // -----------------------------------------------------------------------------------------
@@ -715,7 +855,16 @@ class Provider {
             limit: 28,
             page: 1,
         });
-        const items = (data && data.result && data.result.items) || [];
+        const items = requireList(data.result && data.result.items, "/manga search", "result.items");
+
+        // Covers on static.comix.to sit behind Cloudflare too, so Seanime's image proxy needs the
+        // clearance. The cookie only appears in the image-proxy URL the user's own Seanime client
+        // requests from their own Seanime server, and is attached to comix.to covers only.
+        const credentials = this.readCredentials();
+        const coverHeaders = {
+            "Cookie": `cf_clearance=${credentials.cookie}`,
+            "User-Agent": credentials.userAgent,
+        };
 
         const mangas = [];
         items.forEach((item) => {
@@ -723,19 +872,23 @@ class Provider {
             if (!hashId) return;
 
             const slug = this.slugWithoutHash(hashId, item.slug || this.extractTitleSlug(item.url));
-            mangas.push({
+            const image = this.getPosterUrl(item);
+            const manga = {
                 id: `${hashId}|${slug}`,
                 title: item.title || slug || hashId,
                 synonyms: this.normalizeSynonyms(item.altTitles || item.alt_titles),
                 year: this.getYear(item),
-                image: this.getPosterUrl(item),
-            });
+                image,
+            };
+            if (isComixUrl(image)) manga.imageHeaders = coverHeaders;
+            mangas.push(manga);
         });
         return mangas;
     }
 
     /**
-     * Finds all English chapters, sorted ascending.
+     * Finds all English chapters, sorted ascending. Any failed or malformed page fails the whole
+     * call, because Seanime caches the list it gets and a partial one would hide chapters.
      */
     async findChapters(mangaId) {
         const manga = this.normalizeMangaId(mangaId);
@@ -747,11 +900,14 @@ class Provider {
             "order[number]": "desc",
             page,
         });
+        const itemsOf = (data, page) => requireList(data.result && data.result.items, describeRequest(path, { page }), "result.items");
 
         const first = await fetchPage(1);
-        const firstResult = (first && first.result) || {};
-        const rawChapters = (firstResult.items || []).slice();
-        const lastPage = Math.min(this.getLastPage(firstResult), MAX_CHAPTER_PAGES);
+        const rawChapters = itemsOf(first, 1).slice();
+        if (rawChapters.length >= CHAPTERS_PER_PAGE && !(first.result.meta || first.result.pagination)) {
+            throw fail(`Comix: ${describeRequest(path, { page: 1 })} is full but has no pagination info, so later pages cannot be found. Wait for an extension update.`);
+        }
+        const lastPage = Math.min(this.getLastPage(first.result), MAX_CHAPTER_PAGES);
 
         let reachedEnd = rawChapters.length === 0;
         for (let page = 2; page <= lastPage && !reachedEnd; page += CHAPTER_BATCH_SIZE) {
@@ -762,8 +918,8 @@ class Provider {
             }
 
             const results = await Promise.all(batch);
-            results.forEach((data) => {
-                const items = (data && data.result && data.result.items) || [];
+            results.forEach((data, offset) => {
+                const items = itemsOf(data, page + offset);
                 if (items.length === 0) reachedEnd = true;
                 rawChapters.push.apply(rawChapters, items);
             });
@@ -802,9 +958,10 @@ class Provider {
         const numericId = this.extractNumericChapterId(chapterId);
         if (!numericId) return [];
 
-        const data = await this.apiGet(`/chapters/${numericId}`, {});
-        const pages = (data && data.result && data.result.pages) || {};
-        const items = Array.isArray(pages) ? pages : (pages.items || []);
+        const path = `/chapters/${numericId}`;
+        const data = await this.apiGet(path, {});
+        const pages = (data.result && data.result.pages) || {};
+        const items = Array.isArray(pages) ? pages : requireList(pages.items, path, "result.pages.items");
         const baseUrl = String(pages.baseUrl || "").replace(/\/+$/, "");
 
         if (items.length === 0) console.warn(`Comix: chapter ${numericId} has no pages`);
