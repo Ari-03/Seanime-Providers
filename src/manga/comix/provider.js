@@ -355,10 +355,21 @@ function requireList(value, label, field) {
     throw fail(`Comix: ${label} returned no ${field} list. The response was cut off or the API changed; retry, or wait for an extension update.`);
 }
 
-/** True for https URLs on comix.to or one of its subdomains. */
-function isComixUrl(url) {
-    const match = /^https:\/\/([^/?#:]+)/i.exec(String(url || ""));
-    return !!match && /(^|\.)comix\.to$/i.test(match[1]);
+/**
+ * True for https URLs on comix.to or one of its subdomains, without userinfo. Goja's URL follows
+ * Go's net/url, the parser Seanime's image proxy connects with, so both agree on the host.
+ */
+function isComixUrl(value) {
+    let url;
+    try {
+        url = new URL(String(value || ""));
+    }
+    catch (e) {
+        return false;
+    }
+    const host = url.hostname.toLowerCase();
+    return url.protocol === "https:" && !url.username && !url.password
+        && (host === "comix.to" || host.endsWith(".comix.to"));
 }
 
 class Provider {
@@ -784,11 +795,11 @@ class Provider {
         return isNaN(year) ? undefined : year;
     }
 
-    getLastPage(result) {
-        const pagination = (result && (result.meta || result.pagination)) || {};
-        const lastPage = pagination.lastPage || pagination.last_page || 1;
-        const parsed = parseInt(lastPage, 10);
-        return isNaN(parsed) || parsed < 1 ? 1 : parsed;
+    /** The page count the API declares, or 0 when it is missing or not a positive integer. */
+    declaredLastPage(result) {
+        const pagination = result.meta || result.pagination || {};
+        const lastPage = pagination.lastPage !== undefined ? pagination.lastPage : pagination.last_page;
+        return Number.isInteger(lastPage) && lastPage > 0 ? lastPage : 0;
     }
 
     formatChapterNumber(value) {
@@ -889,6 +900,10 @@ class Provider {
     /**
      * Finds all English chapters, sorted ascending. Any failed or malformed page fails the whole
      * call, because Seanime caches the list it gets and a partial one would hide chapters.
+     *
+     * Paging continues while the last page fetched was full, whatever the metadata says. The
+     * declared `lastPage` only lets pages it covers be fetched in parallel batches; past it, or
+     * without it, pages are fetched one at a time until a short or empty page.
      */
     async findChapters(mangaId) {
         const manga = this.normalizeMangaId(mangaId);
@@ -904,28 +919,36 @@ class Provider {
 
         const first = await fetchPage(1);
         const rawChapters = itemsOf(first, 1).slice();
-        if (rawChapters.length >= CHAPTERS_PER_PAGE && !(first.result.meta || first.result.pagination)) {
-            throw fail(`Comix: ${describeRequest(path, { page: 1 })} is full but has no pagination info, so later pages cannot be found. Wait for an extension update.`);
+        let lastPageFull = rawChapters.length >= CHAPTERS_PER_PAGE;
+        const declared = Math.min(this.declaredLastPage(first.result), MAX_CHAPTER_PAGES);
+        if (lastPageFull && !declared) {
+            const meta = JSON.stringify(first.result.meta || first.result.pagination || null);
+            console.warn(`Comix: ${describeRequest(path, { page: 1 })} is full but declares no usable lastPage (${meta.slice(0, 120)}); fetching pages one at a time until a short page`);
         }
-        const lastPage = Math.min(this.getLastPage(first.result), MAX_CHAPTER_PAGES);
 
-        let reachedEnd = rawChapters.length === 0;
-        for (let page = 2; page <= lastPage && !reachedEnd; page += CHAPTER_BATCH_SIZE) {
-            const started = Date.now();
-            const batch = [];
-            for (let p = page; p < page + CHAPTER_BATCH_SIZE && p <= lastPage; p++) {
-                batch.push(fetchPage(p));
+        let page = 1;
+        while (lastPageFull) {
+            if (page >= MAX_CHAPTER_PAGES) {
+                throw fail(`Comix: ${path} still had full pages after ${MAX_CHAPTER_PAGES} pages. Refusing to return a partial chapter list; wait for an extension update.`);
             }
+            if (page === declared) {
+                console.warn(`Comix: ${path} page ${declared}, the declared last page, is full; checking for more pages one at a time`);
+            }
+            const batchEnd = page < declared ? Math.min(page + CHAPTER_BATCH_SIZE, declared) : page + 1;
+            const pages = [];
+            for (let p = page + 1; p <= batchEnd; p++) pages.push(p);
 
-            const results = await Promise.all(batch);
-            results.forEach((data, offset) => {
-                const items = itemsOf(data, page + offset);
-                if (items.length === 0) reachedEnd = true;
+            const started = Date.now();
+            const results = await Promise.all(pages.map(fetchPage));
+            results.forEach((data, i) => {
+                const items = itemsOf(data, pages[i]);
                 rawChapters.push.apply(rawChapters, items);
+                if (pages[i] === batchEnd) lastPageFull = items.length >= CHAPTERS_PER_PAGE;
             });
+            page = batchEnd;
 
-            const wait = batch.length * MIN_MS_PER_REQUEST - (Date.now() - started);
-            if (wait > 0 && page + CHAPTER_BATCH_SIZE <= lastPage) $sleep(wait);
+            const wait = pages.length * MIN_MS_PER_REQUEST - (Date.now() - started);
+            if (wait > 0 && lastPageFull) $sleep(wait);
         }
 
         // Pages can shift while new chapters are published, so drop repeated chapter ids.
