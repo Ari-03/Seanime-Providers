@@ -39,7 +39,7 @@ The extension reports problems in Seanime's error message and logs. It doesn't r
 - **comix.to's firewall wants a captcha.** Open comix.to in your browser, solve the check, wait a minute and retry.
 - **Chrome could not start.** The keys rotated and Chrome isn't installed. Install it or wait for an update.
 - **Chrome stopped while capturing.** Chrome crashed or was killed mid-capture. Retry, and check that Chrome runs on the Seanime host.
-- **Could not reach comix.to.** A network failure between Seanime and comix.to that persisted through one automatic retry. Network errors, HTTP 5xx and HTTP 429 are each retried once after a pause of up to 3 seconds. Retry once the connection is back.
+- **Could not reach comix.to.** A network failure between Seanime and comix.to that persisted through the automatic retry. Each request to comix.to gets one retry, after a pause of up to 3 seconds, for a network error, HTTP 5xx or HTTP 429. Cloudflare, captcha and token errors are reported straight away instead. Retry once the connection is back.
 - **Returned an error or no list.** comix.to answered, but not with the expected data. Nothing is cached, so retrying is safe; if it persists, the API changed.
 - **Still rejects requests after refreshing.** The site changed how it signs requests. The extension needs an update.
 

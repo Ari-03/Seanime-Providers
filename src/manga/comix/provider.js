@@ -27,8 +27,7 @@ const SNAPSHOT_REJECTED_KEY = "comix:snapshot-rejected";
 const CAPTURE_LEASE_KEY = "comix:capture-lease";
 const CAPTURE_FAILURE_KEY = "comix:capture-failure";
 
-// Transient failures (network, 5xx, 429) get one retry after a short pause.
-const SEND_ATTEMPTS = 2;
+// Pause before the one transient retry an API call gets (network error, 5xx, 429).
 const RETRY_DELAY_MS = 1000;
 const MAX_RETRY_DELAY_MS = 3000;
 
@@ -424,41 +423,15 @@ class Provider {
         return { cookie, userAgent };
     }
 
-    /**
-     * Sends a GET to comix.to with the user's clearance cookie and matching User-Agent.
-     * A failure that looks transient (network or TLS error, HTTP 5xx, 429) is retried once after a
-     * short pause; everything else is returned for checkResponse to classify. Network failures
-     * reject with a Go error object, so they are turned into a readable string.
-     */
-    async send(url, credentials, label) {
-        for (let attempt = 1; ; attempt++) {
-            let response = null;
-            let reason = "";
-            try {
-                response = await fetch(url, {
-                    headers: {
-                        "User-Agent": credentials.userAgent,
-                        "Cookie": `cf_clearance=${credentials.cookie}`,
-                        "Accept": "application/json, text/plain, */*",
-                    },
-                });
-                const transient = response.status === 429 || response.status >= 500;
-                if (!transient || isCloudflareChallenge(response, response.text())) return response;
-                reason = `HTTP ${response.status}`;
-            }
-            catch (e) {
-                reason = errorText(e).replace(/^Get "[^"]*":\s*/, "");
-            }
-
-            if (attempt >= SEND_ATTEMPTS) {
-                if (response) return response;
-                throw fail(`Comix: could not reach comix.to for ${label} (${reason}). Check the Seanime host's connection and retry.`);
-            }
-            const delay = retryDelayMs(response);
-            console.warn(`Comix: ${label} failed (${reason}); retrying in ${delay} ms`);
-            // $sleep blocks this VM; the pause is short and capped, so it only delays siblings.
-            $sleep(delay);
-        }
+    /** Sends one GET to comix.to with the user's clearance cookie and matching User-Agent. */
+    async send(url, credentials) {
+        return fetch(url, {
+            headers: {
+                "User-Agent": credentials.userAgent,
+                "Cookie": `cf_clearance=${credentials.cookie}`,
+                "Accept": "application/json, text/plain, */*",
+            },
+        });
     }
 
     /** Builds the full API URL with the `_` signature for `path` (without /api/v1). */
@@ -471,17 +444,17 @@ class Provider {
     }
 
     /**
-     * Classifies a non-success response. Returns "token" for a rejected signature (refreshable);
-     * throws an actionable error for everything else.
+     * Classifies a non-200 response, recognised bodies first: a Cloudflare challenge or the WAF
+     * captcha throws, a rejected signature returns "token". Only then is an unrecognised 429 or
+     * 5xx called "transient"; any other status throws.
      */
     checkResponse(response, text, label) {
-        if (response.status === 200) return null;
         if (isCloudflareChallenge(response, text)) {
             throw fail(`${MESSAGES.cloudflare} (HTTP ${response.status} on ${label})`);
         }
         if (/captcha_required/.test(text)) throw fail(MESSAGES.waf);
         if (/(Missing|Invalid) token/i.test(text)) return "token";
-        if (response.status === 429) throw fail(MESSAGES.rateLimited);
+        if (response.status === 429 || response.status >= 500) return "transient";
         throw fail(`Comix: HTTP ${response.status} from ${label}: ${text.slice(0, 120)}`);
     }
 
@@ -534,35 +507,69 @@ class Provider {
 
     /**
      * Sends a signed GET for `path` (relative to /api/v1) and returns the decoded JSON.
-     * If the token is rejected or the body does not decrypt, the material is dropped and the
-     * request retried once with fresh material.
+     *
+     * One call makes at most three requests. It has one transient retry (network or TLS error,
+     * unrecognised 429 or 5xx) after a short pause, and one refresh when the token is rejected or
+     * the body does not decrypt. Each is spent once per call, in whichever order the failures come.
      */
     async apiGet(path, params) {
         const credentials = this.readCredentials();
         const entries = canonicalEntries(params || {});
         const label = describeRequest(path, params);
+        let retryLeft = true;
+        let refreshLeft = true;
         let rejected = null;
 
-        for (let attempt = 0; attempt < 2; attempt++) {
+        for (;;) {
             const material = await this.getMaterial(credentials, rejected);
-            const response = await this.send(this.signedUrl(path, entries, material), credentials, label);
-            const text = response.text();
-            this.noteBuild(response, material);
+            rejected = null;
 
-            if (this.checkResponse(response, text, label) === "token") {
-                console.warn(`Comix: ${label} rejected the request token (${text.slice(0, 60)})`);
+            let response = null;
+            let problem;
+            let reason;
+            let failure;
+            try {
+                response = await this.send(this.signedUrl(path, entries, material), credentials);
+            }
+            catch (e) {
+                reason = errorText(e).replace(/^Get "[^"]*":\s*/, "");
+                problem = "transient";
+                failure = `Comix: could not reach comix.to for ${label} (${reason}). Check the Seanime host's connection and retry.`;
+            }
+
+            if (response) {
+                const text = response.text();
+                this.noteBuild(response, material);
+                if (response.status === 200) {
+                    const body = this.decodeBody(text, material, label);
+                    if (body !== undefined) return this.checkEnvelope(body, label);
+                    problem = "token";
+                    console.warn(`Comix: could not decrypt the response from ${label}`);
+                }
+                else {
+                    problem = this.checkResponse(response, text, label);
+                    if (problem === "token") console.warn(`Comix: ${label} rejected the request token (${text.slice(0, 60)})`);
+                    reason = `HTTP ${response.status}`;
+                    failure = response.status === 429
+                        ? MESSAGES.rateLimited
+                        : `Comix: HTTP ${response.status} from ${label}: ${text.slice(0, 120)}`;
+                }
+            }
+
+            if (problem === "token") {
+                if (!refreshLeft) throw fail(MESSAGES.stillRejected);
+                refreshLeft = false;
                 rejected = material;
                 continue;
             }
 
-            const body = this.decodeBody(text, material, label);
-            if (body !== undefined) return this.checkEnvelope(body, label);
-
-            console.warn(`Comix: could not decrypt the response from ${label}`);
-            rejected = material;
+            if (!retryLeft) throw fail(failure);
+            retryLeft = false;
+            const delay = retryDelayMs(response);
+            console.warn(`Comix: ${label} failed (${reason}); retrying in ${delay} ms`);
+            // $sleep blocks this VM; the pause is short and capped, so it only delays siblings.
+            $sleep(delay);
         }
-
-        throw fail(MESSAGES.stillRejected);
     }
 
     // -----------------------------------------------------------------------------------------
@@ -950,6 +957,8 @@ class Provider {
      * Paging always reaches a valid declared `lastPage`, fetching those pages in parallel batches,
      * and then continues one page at a time while the last page fetched was full. So neither a
      * short page before `lastPage` nor missing or understated metadata can cut the list short.
+     * An empty page means the list has ended: the batch in flight is kept and no more are fetched.
+     * Lists longer than MAX_CHAPTER_PAGES pages, declared or discovered, fail instead of being cut.
      */
     async findChapters(mangaId) {
         const manga = this.normalizeMangaId(mangaId);
@@ -966,17 +975,18 @@ class Provider {
         const first = await fetchPage(1);
         const rawChapters = itemsOf(first, 1).slice();
         let lastPageFull = rawChapters.length >= CHAPTERS_PER_PAGE;
-        const declared = Math.min(this.declaredLastPage(first.result), MAX_CHAPTER_PAGES);
+        let sawEmptyPage = rawChapters.length === 0;
+        const tooManyPages = `Comix: ${path} has more than ${MAX_CHAPTER_PAGES} pages of chapters. Refusing to return a partial chapter list; wait for an extension update.`;
+        const declared = this.declaredLastPage(first.result);
+        if (declared > MAX_CHAPTER_PAGES) throw fail(tooManyPages);
         if (lastPageFull && !declared) {
             const meta = JSON.stringify(first.result.meta || first.result.pagination || null);
             console.warn(`Comix: ${describeRequest(path, { page: 1 })} is full but declares no usable lastPage (${meta.slice(0, 120)}); fetching pages one at a time until a short page`);
         }
 
         let page = 1;
-        while (page < declared || lastPageFull) {
-            if (page >= MAX_CHAPTER_PAGES) {
-                throw fail(`Comix: ${path} still had full pages after ${MAX_CHAPTER_PAGES} pages. Refusing to return a partial chapter list; wait for an extension update.`);
-            }
+        while ((page < declared || lastPageFull) && !sawEmptyPage) {
+            if (page >= MAX_CHAPTER_PAGES) throw fail(tooManyPages);
             if (page === declared) {
                 console.warn(`Comix: ${path} page ${declared}, the declared last page, is full; checking for more pages one at a time`);
             }
@@ -989,12 +999,13 @@ class Provider {
             results.forEach((data, i) => {
                 const items = itemsOf(data, pages[i]);
                 rawChapters.push.apply(rawChapters, items);
+                if (items.length === 0) sawEmptyPage = true;
                 if (pages[i] === batchEnd) lastPageFull = items.length >= CHAPTERS_PER_PAGE;
             });
             page = batchEnd;
 
             const wait = pages.length * MIN_MS_PER_REQUEST - (Date.now() - started);
-            if (wait > 0 && (page < declared || lastPageFull)) $sleep(wait);
+            if (wait > 0 && (page < declared || lastPageFull) && !sawEmptyPage) $sleep(wait);
         }
 
         // Pages can shift while new chapters are published, so drop repeated chapter ids.
