@@ -210,7 +210,14 @@ interface LedgerModule {
     saveConfig(cfg: Config): void
     episodes(mediaId: number): Record<string, LedgerEntry>
     has(mediaId: number, episode: number): boolean
-    add(fence: Fence, mediaId: number, episodes: number[], source: LedgerSource, torrentName?: string, title?: string): number
+    add(
+        fence: Fence,
+        mediaId: number,
+        episodes: number[],
+        source: LedgerSource,
+        torrentName?: string,
+        title?: string,
+    ): number
     rememberFiles(files: $app.Anime_LocalFile[], source: LedgerSource): number
     forget(mediaId: number): void
     all(): Record<string, MediaLedger>
@@ -257,7 +264,6 @@ interface Modules {
 }
 
 function init() {
-
     // The factory is re-run inside each runtime that calls $shared.use, so it must be self-contained.
     $shared.define<Modules>("download-memory", () => {
         const DEFAULTS: Config = {
@@ -422,7 +428,8 @@ function init() {
             const pending = queued()
             const ledger = storedLedger(mediaId)
             for (const { write } of pending) {
-                if (write.kind === "add" && write.add.mediaId === mediaId && !isStale(write.at, mediaId)) merge(ledger, write.add)
+                if (write.kind === "add" && write.add.mediaId === mediaId && !isStale(write.at, mediaId))
+                    merge(ledger, write.add)
             }
             return ledger
         }
@@ -442,7 +449,14 @@ function init() {
             return added
         }
 
-        function add(at: Fence, mediaId: number, episodes: number[], source: LedgerSource, torrentName?: string, title?: string): number {
+        function add(
+            at: Fence,
+            mediaId: number,
+            episodes: number[],
+            source: LedgerSource,
+            torrentName?: string,
+            title?: string,
+        ): number {
             if (isStale(at, mediaId)) return 0
             const addition: Addition = { mediaId, episodes, source, torrentName, title }
             if (writer) return applyAdd(at, addition)
@@ -643,7 +657,8 @@ function init() {
                 if (hit && !isStale(hit, mediaId)) {
                     const hitAge = Date.now() - hit.fetchedAt
                     if (hit.failed && hitAge < LIVE_FAILURE_MS) return "failed"
-                    if (!hit.failed && hit.keys && hitAge < LIVE_CACHE_MS) return shoko.translate(hit.keys, lookup.anidbToEpisode)
+                    if (!hit.failed && hit.keys && hitAge < LIVE_CACHE_MS)
+                        return shoko.translate(hit.keys, lookup.anidbToEpisode)
                 }
                 function remember(entry: LiveCacheEntry) {
                     // A Clear or Forget that happened while we waited must not be undone by this answer
@@ -656,7 +671,8 @@ function init() {
                     const res = awaitSync(shoko.request(fetch, cfg, shoko.episodesPath(lookup.seriesId)))
                     // Settings may have changed while the request was in flight, then the answer is not ours
                     const now = config()
-                    if (!shokoActive(now) || base(now) !== base(cfg) || now.shokoApiKey !== cfg.shokoApiKey) return "failed"
+                    if (!shokoActive(now) || base(now) !== base(cfg) || now.shokoApiKey !== cfg.shokoApiKey)
+                        return "failed"
                     let keys: AniDBEpisodeKey[] = []
                     if (res.status !== 404) {
                         if (!res.ok) throw new Error(`Shoko returned ${res.status}`)
@@ -704,7 +720,9 @@ function init() {
                 $sleep(MAP_WAIT_STEP_MS)
                 if ($store.get<number | undefined>("download-memory:maps-ready") === request.serial) return true
             }
-            console.log(`download-memory: Shoko lookups for #${mediaIds.join(", #")} were not ready, their episodes are deferred to the next run`)
+            console.log(
+                `download-memory: Shoko lookups for #${mediaIds.join(", #")} were not ready, their episodes are deferred to the next run`,
+            )
             return false
         }
 
@@ -769,7 +787,10 @@ function init() {
                 return { list, unseen: list.filter((entry) => !entry.simulated && !entry.seen).length }
             },
             markSeen() {
-                $storage.set("blocked", blockedList().map((entry) => Object.assign({}, entry, { seen: true })))
+                $storage.set(
+                    "blocked",
+                    blockedList().map((entry) => Object.assign({}, entry, { seen: true })),
+                )
             },
         }
 
@@ -858,9 +879,15 @@ function init() {
     $app.onAutoDownloaderBestCandidateSelected((e) => {
         try {
             // Untagged Go fields reach the runtime in lowerCamel, the typings say `Torrent`
-            const candidate = e.candidate as ($app.AutoDownloader_Candidate & { torrent?: $app.AutoDownloader_NormalizedTorrent }) | undefined
+            const candidate = e.candidate as
+                ($app.AutoDownloader_Candidate & { torrent?: $app.AutoDownloader_NormalizedTorrent }) | undefined
             const torrent = candidate && (candidate.torrent || candidate.Torrent)
-            if (e.rule && $shared.use<Modules>("download-memory").guard.shouldBlock(e.rule, e.episode, torrent ? torrent.name : "", e.isSimulation)) {
+            if (
+                e.rule &&
+                $shared
+                    .use<Modules>("download-memory")
+                    .guard.shouldBlock(e.rule, e.episode, torrent ? torrent.name : "", e.isSimulation)
+            ) {
                 e.preventDefault()
             }
         } catch (err) {
@@ -872,7 +899,12 @@ function init() {
     // Delayed queue items skip candidate selection, so check again right before the download
     $app.onAutoDownloaderBeforeDownloadTorrent((e) => {
         try {
-            if (e.rule && $shared.use<Modules>("download-memory").guard.shouldBlock(e.rule, e.episode, e.torrent ? e.torrent.name : "", e.isSimulation)) {
+            if (
+                e.rule &&
+                $shared
+                    .use<Modules>("download-memory")
+                    .guard.shouldBlock(e.rule, e.episode, e.torrent ? e.torrent.name : "", e.isSimulation)
+            ) {
                 e.preventDefault()
             }
         } catch (err) {
@@ -941,7 +973,8 @@ function init() {
         function ruleTitles(): Record<string, string> {
             const titles: Record<string, string> = {}
             try {
-                for (const rule of $database.autoDownloaderRules.getAll()) titles[String(rule.mediaId)] = rule.comparisonTitle
+                for (const rule of $database.autoDownloaderRules.getAll())
+                    titles[String(rule.mediaId)] = rule.comparisonTitle
             } catch (err) {
                 // database permission not granted, fall back to stored titles
             }
@@ -962,7 +995,10 @@ function init() {
             for (const mediaId in all) {
                 const count = Object.keys(all[mediaId].episodes).length
                 episodes += count
-                options.push({ label: `${titles[mediaId] || all[mediaId].title || "#" + mediaId} (${count})`, value: mediaId })
+                options.push({
+                    label: `${titles[mediaId] || all[mediaId].title || "#" + mediaId} (${count})`,
+                    value: mediaId,
+                })
             }
             options.sort((a, b) => a.label.localeCompare(b.label))
             summary.set({ anime: options.length, episodes })
@@ -1024,7 +1060,11 @@ function init() {
         }
 
         function assertSettingsUnchanged(snap: Config) {
-            if (snap.shokoUrl !== cfg.shokoUrl || snap.shokoApiKey !== cfg.shokoApiKey || snap.shokoEnabled !== cfg.shokoEnabled) {
+            if (
+                snap.shokoUrl !== cfg.shokoUrl ||
+                snap.shokoApiKey !== cfg.shokoApiKey ||
+                snap.shokoEnabled !== cfg.shokoEnabled
+            ) {
                 throw new SettingsChanged()
             }
         }
@@ -1085,7 +1125,12 @@ function init() {
         //   absent  a definite no (not in Shoko, no AniDB mapping), trusted for a few minutes
         //   error   something failed, retried later. Downloads stay deferred until it succeeds.
         // A lookup that was found before survives a transient failure. Returns found lookups only.
-        async function ensureShokoMap(at: Fence, mediaId: number, snap: Config, skipped: string[]): Promise<ShokoFound | undefined> {
+        async function ensureShokoMap(
+            at: Fence,
+            mediaId: number,
+            snap: Config,
+            skipped: string[],
+        ): Promise<ShokoFound | undefined> {
             const existing = shoko.found(mediaId, snap)
             const common = { url: shoko.base(snap), gen: at.gen, resolvedAt: 0 }
             let lookup: ShokoLookup
@@ -1176,7 +1221,10 @@ function init() {
                 const skippedText = skipped.length > 0 ? ` · skipped ${skipped.join("; ")}` : ""
                 // A Clear during the sync also cleared the summary, do not bring it back
                 if (!modules.isStale(at)) {
-                    $storage.set("shoko-last-sync", `${when} · ${synced}/${total} anime · +${added} episodes${skippedText}`)
+                    $storage.set(
+                        "shoko-last-sync",
+                        `${when} · ${synced}/${total} anime · +${added} episodes${skippedText}`,
+                    )
                 }
                 if (manual) ctx.toast.success(`Shoko sync done, ${added} new episode(s) remembered`)
                 if (added > 0) $app.invalidateClientQuery(["ANIME-ENTRIES-get-missing-episodes"])
@@ -1216,9 +1264,12 @@ function init() {
             }
             if (!cfg.shokoEnabled) return
             const minutes = Math.max(1, cfg.shokoIntervalMin || 15)
-            cancelSync = ctx.setInterval(() => {
-                syncShoko(false)
-            }, minutes * 60 * 1000)
+            cancelSync = ctx.setInterval(
+                () => {
+                    syncShoko(false)
+                },
+                minutes * 60 * 1000,
+            )
         }
 
         // ---- event handlers
@@ -1307,15 +1358,17 @@ function init() {
             const snap = snapshotConfig()
             const at = modules.fence()
             const skipped: string[] = []
-            await Promise.all(request.mediaIds.map(async (mediaId) => {
-                try {
-                    await ensureShokoMap(at, mediaId, snap, skipped)
-                } catch (err) {
-                    if (!(err instanceof SettingsChanged)) {
-                        console.error("download-memory: could not resolve the Shoko lookup for #" + mediaId, err)
+            await Promise.all(
+                request.mediaIds.map(async (mediaId) => {
+                    try {
+                        await ensureShokoMap(at, mediaId, snap, skipped)
+                    } catch (err) {
+                        if (!(err instanceof SettingsChanged)) {
+                            console.error("download-memory: could not resolve the Shoko lookup for #" + mediaId, err)
+                        }
                     }
-                }
-            }))
+                }),
+            )
             $store.set("download-memory:maps-ready", request.serial)
             syncShoko(false)
         })
@@ -1350,46 +1403,88 @@ function init() {
             const s = summary.get()
             const recent = blocked.get().slice(0, 8)
 
-            return tray.stack([
-                tray.text(`Remembering ${s.episodes} episode(s) across ${s.anime} anime.`, { className: "text-sm text-[--muted]" }),
-                tray.switch("Enabled", { fieldRef: enabledRef }),
-                tray.checkbox("Also hide remembered episodes from missing/download lists", { fieldRef: hideRef }),
+            return tray.stack(
+                [
+                    tray.text(`Remembering ${s.episodes} episode(s) across ${s.anime} anime.`, {
+                        className: "text-sm text-[--muted]",
+                    }),
+                    tray.switch("Enabled", { fieldRef: enabledRef }),
+                    tray.checkbox("Also hide remembered episodes from missing/download lists", { fieldRef: hideRef }),
 
-                tray.text("Shoko Server", { className: "text-sm font-semibold pt-2" }),
-                tray.switch("Check Shoko for episodes it already has", { fieldRef: shokoEnabledRef }),
-                tray.input("URL", { fieldRef: shokoUrlRef, placeholder: "http://127.0.0.1:8111" }),
-                tray.input("API key", { fieldRef: shokoKeyRef, placeholder: "Paste a key, or log in below to create one" }),
-                tray.flex([
-                    tray.input("Username", { fieldRef: shokoUserRef }),
-                    tray.input("Password", { fieldRef: shokoPassRef }),
-                    tray.button("Get key", { onClick: "shoko-login", intent: "gray-subtle", size: "sm" }),
-                ], { gap: 2, style: { alignItems: "flex-end" } }),
-                tray.select("Sync every", { options: INTERVALS, fieldRef: shokoIntervalRef }),
-                tray.flex([
-                    tray.button("Sync now", { onClick: "sync-now", intent: "primary-subtle", size: "sm", loading: syncing.get() }),
-                    tray.button("Test connection", { onClick: "test-shoko", intent: "gray-subtle", size: "sm" }),
-                ], { gap: 2 }),
-                tray.text(`Last sync: ${lastSync.get()}`, { className: "text-xs text-[--muted]" }),
+                    tray.text("Shoko Server", { className: "text-sm font-semibold pt-2" }),
+                    tray.switch("Check Shoko for episodes it already has", { fieldRef: shokoEnabledRef }),
+                    tray.input("URL", { fieldRef: shokoUrlRef, placeholder: "http://127.0.0.1:8111" }),
+                    tray.input("API key", {
+                        fieldRef: shokoKeyRef,
+                        placeholder: "Paste a key, or log in below to create one",
+                    }),
+                    tray.flex(
+                        [
+                            tray.input("Username", { fieldRef: shokoUserRef }),
+                            tray.input("Password", { fieldRef: shokoPassRef }),
+                            tray.button("Get key", { onClick: "shoko-login", intent: "gray-subtle", size: "sm" }),
+                        ],
+                        { gap: 2, style: { alignItems: "flex-end" } },
+                    ),
+                    tray.select("Sync every", { options: INTERVALS, fieldRef: shokoIntervalRef }),
+                    tray.flex(
+                        [
+                            tray.button("Sync now", {
+                                onClick: "sync-now",
+                                intent: "primary-subtle",
+                                size: "sm",
+                                loading: syncing.get(),
+                            }),
+                            tray.button("Test connection", {
+                                onClick: "test-shoko",
+                                intent: "gray-subtle",
+                                size: "sm",
+                            }),
+                        ],
+                        { gap: 2 },
+                    ),
+                    tray.text(`Last sync: ${lastSync.get()}`, { className: "text-xs text-[--muted]" }),
 
-                tray.text("Recently blocked", { className: "text-sm font-semibold pt-2" }),
-                ...(recent.length === 0
-                    ? [tray.text("Nothing yet.", { className: "text-xs text-[--muted]" })]
-                    : recent.map((b) => tray.text(
-                        `${b.title || "#" + b.mediaId} · Episode ${b.episode}`
-                        + (b.reason === "shoko" ? " · confirmed by Shoko" : "")
-                        + (b.reason === "lookup-pending" ? " · deferred, Shoko could not be consulted" : "")
-                        + (b.simulated ? " (preview run)" : ""),
-                        { className: "text-xs" },
-                    ))),
+                    tray.text("Recently blocked", { className: "text-sm font-semibold pt-2" }),
+                    ...(recent.length === 0
+                        ? [tray.text("Nothing yet.", { className: "text-xs text-[--muted]" })]
+                        : recent.map((b) =>
+                              tray.text(
+                                  `${b.title || "#" + b.mediaId} · Episode ${b.episode}` +
+                                      (b.reason === "shoko" ? " · confirmed by Shoko" : "") +
+                                      (b.reason === "lookup-pending"
+                                          ? " · deferred, Shoko could not be consulted"
+                                          : "") +
+                                      (b.simulated ? " (preview run)" : ""),
+                                  { className: "text-xs" },
+                              ),
+                          )),
 
-                tray.text("Maintenance", { className: "text-sm font-semibold pt-2" }),
-                tray.button("Remember current library", { onClick: "remember-library", intent: "gray-subtle", size: "sm" }),
-                tray.select("Forget an anime", { options: mediaOptions.get(), fieldRef: forgetRef, placeholder: "Pick an anime" }),
-                tray.flex([
-                    tray.button("Forget selected", { onClick: "forget", intent: "warning-subtle", size: "sm" }),
-                    tray.button("Clear everything", { onClick: "clear-all", intent: "alert-subtle", size: "sm" }),
-                ], { gap: 2 }),
-            ], { style: { gap: "0.35rem" } })
+                    tray.text("Maintenance", { className: "text-sm font-semibold pt-2" }),
+                    tray.button("Remember current library", {
+                        onClick: "remember-library",
+                        intent: "gray-subtle",
+                        size: "sm",
+                    }),
+                    tray.select("Forget an anime", {
+                        options: mediaOptions.get(),
+                        fieldRef: forgetRef,
+                        placeholder: "Pick an anime",
+                    }),
+                    tray.flex(
+                        [
+                            tray.button("Forget selected", { onClick: "forget", intent: "warning-subtle", size: "sm" }),
+                            tray.button("Clear everything", {
+                                onClick: "clear-all",
+                                intent: "alert-subtle",
+                                size: "sm",
+                            }),
+                        ],
+                        { gap: 2 },
+                    ),
+                ],
+                { style: { gap: "0.35rem" } },
+            )
         })
     })
 }
