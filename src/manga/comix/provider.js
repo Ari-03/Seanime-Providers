@@ -54,8 +54,19 @@ const LEASE_POLL_MS = 250;
 // Requests Chrome skips while capturing: third-party fonts and analytics, and images. Only
 // comix.to's own scripts are needed to decode the keys.
 const CAPTURE_BLOCKED_URLS = [
-    "*fonts.googleapis.com*", "*fonts.gstatic.com*", "*cloudflareinsights.com*", "*whos.amung.us*",
-    "*.png*", "*.jpg*", "*.jpeg*", "*.webp*", "*.gif*", "*.svg*", "*.ico*", "*.woff*", "*.woff2*",
+    "*fonts.googleapis.com*",
+    "*fonts.gstatic.com*",
+    "*cloudflareinsights.com*",
+    "*whos.amung.us*",
+    "*.png*",
+    "*.jpg*",
+    "*.jpeg*",
+    "*.webp*",
+    "*.gif*",
+    "*.svg*",
+    "*.ico*",
+    "*.woff*",
+    "*.woff2*",
 ];
 
 // Initial feedback byte of each cipher round.
@@ -80,7 +91,10 @@ const SNAPSHOT = {
     selfTest: [
         ["/manga/55k2l", "IZ-P1pUtAqg2Su1q"],
         ["/chapters/11442054", "IQ6wvJBq2kpghZShPp_jctfO"],
-        ["/manga/55k2l/chapters?limit=20&order[number]=desc&page=1", "IZ-P1pUtAqg2Su1qkCrZLo-bzeBDZM7pv9lrT7wtAafBDb5txD-qNq9gnd8k1xD3TcCW5dJSADA"],
+        [
+            "/manga/55k2l/chapters?limit=20&order[number]=desc&page=1",
+            "IZ-P1pUtAqg2Su1qkCrZLo-bzeBDZM7pv9lrT7wtAafBDb5txD-qNq9gnd8k1xD3TcCW5dJSADA",
+        ],
     ],
 };
 
@@ -109,14 +123,19 @@ const CAPTURE_STATE = `JSON.stringify({
 })`;
 
 const MESSAGES = {
-    missingConfig: "Comix: set both the cf_clearance cookie and the User-Agent in the extension settings. Open https://comix.to in your browser, copy the cf_clearance cookie (DevTools > Application > Cookies) and the value of navigator.userAgent from the same browser.",
-    cloudflare: "Comix: Cloudflare rejected the request. The cf_clearance cookie has expired or does not match the User-Agent. Open https://comix.to in your browser, then copy a fresh cf_clearance cookie and that same browser's navigator.userAgent into the extension settings.",
+    missingConfig:
+        "Comix: set both the cf_clearance cookie and the User-Agent in the extension settings. Open https://comix.to in your browser, copy the cf_clearance cookie (DevTools > Application > Cookies) and the value of navigator.userAgent from the same browser.",
+    cloudflare:
+        "Comix: Cloudflare rejected the request. The cf_clearance cookie has expired or does not match the User-Agent. Open https://comix.to in your browser, then copy a fresh cf_clearance cookie and that same browser's navigator.userAgent into the extension settings.",
     waf: "Comix: comix.to's firewall wants a captcha (captcha_required). Open https://comix.to in your browser, solve the check, wait a minute, then retry.",
     rateLimited: "Comix: comix.to is rate limiting requests (HTTP 429). Wait a minute, then retry.",
-    noChrome: "Comix: the site's signing keys changed and must be refreshed with Chrome, but Chrome could not start. Install Google Chrome or Chromium on the Seanime host, or wait for an extension update.",
-    chromeFailed: "Comix: Chrome stopped while capturing the comix.to signing keys. Retry, or check that Chrome or Chromium runs on the Seanime host.",
+    noChrome:
+        "Comix: the site's signing keys changed and must be refreshed with Chrome, but Chrome could not start. Install Google Chrome or Chromium on the Seanime host, or wait for an extension update.",
+    chromeFailed:
+        "Comix: Chrome stopped while capturing the comix.to signing keys. Retry, or check that Chrome or Chromium runs on the Seanime host.",
     captureWait: "Comix: timed out waiting for another request to refresh the comix.to signing keys. Retry.",
-    stillRejected: "Comix: comix.to still rejects requests after refreshing the signing keys. The site probably changed its signing scheme; wait for an extension update.",
+    stillRejected:
+        "Comix: comix.to still rejects requests after refreshing the signing keys. The site probably changed its signing scheme; wait for an extension update.",
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -261,16 +280,18 @@ function decryptPayload(payload, material) {
  */
 function canonicalEntries(params) {
     const entries = [];
-    Object.keys(params).sort().forEach((rawName) => {
-        const value = params[rawName];
-        const isList = Array.isArray(value) || rawName.endsWith("[]");
-        const name = rawName.endsWith("[]") ? rawName.slice(0, -2) : rawName;
-        if (!isList) {
-            entries.push([name, String(value).trim()]);
-            return;
-        }
-        [].concat(value).forEach((item, index) => entries.push([`${name}[${index}]`, String(item).trim()]));
-    });
+    Object.keys(params)
+        .sort()
+        .forEach((rawName) => {
+            const value = params[rawName];
+            const isList = Array.isArray(value) || rawName.endsWith("[]");
+            const name = rawName.endsWith("[]") ? rawName.slice(0, -2) : rawName;
+            if (!isList) {
+                entries.push([name, String(value).trim()]);
+                return;
+            }
+            [].concat(value).forEach((item, index) => entries.push([`${name}[${index}]`, String(item).trim()]));
+        });
     return entries;
 }
 
@@ -288,10 +309,15 @@ function isPermutation(sbox) {
 
 /** Checks the shape of cipher material: three permutation S-boxes and three 24/32-byte keys. */
 function isValidMaterial(material) {
-    return !!material
-        && Array.isArray(material.sboxes) && material.sboxes.length === 3 && material.sboxes.every(isPermutation)
-        && Array.isArray(material.keys) && material.keys.length === 3
-        && material.keys.every((key) => Array.isArray(key) && (key.length === 24 || key.length === 32));
+    return (
+        !!material &&
+        Array.isArray(material.sboxes) &&
+        material.sboxes.length === 3 &&
+        material.sboxes.every(isPermutation) &&
+        Array.isArray(material.keys) &&
+        material.keys.length === 3 &&
+        material.keys.every((key) => Array.isArray(key) && (key.length === 24 || key.length === 32))
+    );
 }
 
 /** Picks the first three S-boxes and keys out of atob captures, in capture order. */
@@ -312,8 +338,7 @@ function readStoredJson(key) {
     if (typeof raw !== "string" || !raw) return null;
     try {
         return JSON.parse(raw);
-    }
-    catch (e) {
+    } catch (e) {
         return null;
     }
 }
@@ -356,7 +381,9 @@ function describeRequest(path, params) {
  */
 function requireList(value, label, field) {
     if (Array.isArray(value)) return value;
-    throw fail(`Comix: ${label} returned no ${field} list. The response was cut off or the API changed; retry, or wait for an extension update.`);
+    throw fail(
+        `Comix: ${label} returned no ${field} list. The response was cut off or the API changed; retry, or wait for an extension update.`,
+    );
 }
 
 /** True when a response is Cloudflare's challenge page rather than comix.to's API. */
@@ -379,13 +406,16 @@ function isComixUrl(value) {
     let url;
     try {
         url = new URL(String(value || ""));
-    }
-    catch (e) {
+    } catch (e) {
         return false;
     }
     const host = url.hostname.toLowerCase();
-    return url.protocol === "https:" && !url.username && !url.password
-        && (host === "comix.to" || host.endsWith(".comix.to"));
+    return (
+        url.protocol === "https:" &&
+        !url.username &&
+        !url.password &&
+        (host === "comix.to" || host.endsWith(".comix.to"))
+    );
 }
 
 /**
@@ -396,7 +426,6 @@ function isComixUrl(value) {
 let inFlightCapture = null;
 
 class Provider {
-
     constructor() {
         this.api = SITE_URL;
         this.apiUrl = API_URL;
@@ -418,7 +447,9 @@ class Provider {
         const rawCookie = String($getUserPreference("cfClearance") || "").trim();
         const match = rawCookie.match(/cf_clearance=([^;\s]+)/);
         const cookie = (match ? match[1] : rawCookie).replace(/^["']|["']$/g, "");
-        const userAgent = String($getUserPreference("userAgent") || "").trim().replace(/^["']|["']$/g, "");
+        const userAgent = String($getUserPreference("userAgent") || "")
+            .trim()
+            .replace(/^["']|["']$/g, "");
         if (!cookie || !userAgent) throw fail(MESSAGES.missingConfig);
         return { cookie, userAgent };
     }
@@ -428,8 +459,8 @@ class Provider {
         return fetch(url, {
             headers: {
                 "User-Agent": credentials.userAgent,
-                "Cookie": `cf_clearance=${credentials.cookie}`,
-                "Accept": "application/json, text/plain, */*",
+                Cookie: `cf_clearance=${credentials.cookie}`,
+                Accept: "application/json, text/plain, */*",
             },
         });
     }
@@ -478,15 +509,13 @@ class Provider {
         let root;
         try {
             root = JSON.parse(text);
-        }
-        catch (e) {
+        } catch (e) {
             throw fail(`Comix: unexpected non-JSON response from ${label}: ${text.slice(0, 120)}`);
         }
         if (!root || typeof root.e !== "string") return root;
         try {
             return JSON.parse(decryptPayload(root.e, material));
-        }
-        catch (e) {
+        } catch (e) {
             return undefined;
         }
     }
@@ -501,7 +530,9 @@ class Provider {
         if (!build || $store.get(SITE_BUILD_KEY) === build) return;
         $store.set(SITE_BUILD_KEY, build);
         if (material.buildId && material.buildId !== build) {
-            console.warn(`Comix: site build is now ${build}; cipher material is from ${material.buildId} (${material.source}). It will refresh if the site starts rejecting it.`);
+            console.warn(
+                `Comix: site build is now ${build}; cipher material is from ${material.buildId} (${material.source}). It will refresh if the site starts rejecting it.`,
+            );
         }
     }
 
@@ -530,8 +561,7 @@ class Provider {
             let failure;
             try {
                 response = await this.send(this.signedUrl(path, entries, material), credentials);
-            }
-            catch (e) {
+            } catch (e) {
                 reason = errorText(e).replace(/^Get "[^"]*":\s*/, "");
                 problem = "transient";
                 failure = `Comix: could not reach comix.to for ${label} (${reason}). Check the Seanime host's connection and retry.`;
@@ -545,14 +575,15 @@ class Provider {
                     if (body !== undefined) return this.checkEnvelope(body, label);
                     problem = "token";
                     console.warn(`Comix: could not decrypt the response from ${label}`);
-                }
-                else {
+                } else {
                     problem = this.checkResponse(response, text, label);
-                    if (problem === "token") console.warn(`Comix: ${label} rejected the request token (${text.slice(0, 60)})`);
+                    if (problem === "token")
+                        console.warn(`Comix: ${label} rejected the request token (${text.slice(0, 60)})`);
                     reason = `HTTP ${response.status}`;
-                    failure = response.status === 429
-                        ? MESSAGES.rateLimited
-                        : `Comix: HTTP ${response.status} from ${label}: ${text.slice(0, 120)}`;
+                    failure =
+                        response.status === 429
+                            ? MESSAGES.rateLimited
+                            : `Comix: HTTP ${response.status} from ${label}: ${text.slice(0, 120)}`;
                 }
             }
 
@@ -584,7 +615,9 @@ class Provider {
         let cached = readCachedMaterial();
 
         if (rejected) {
-            console.warn(`Comix: dropping rejected cipher material (${rejected.source}, build ${rejected.buildId || "unknown"})`);
+            console.warn(
+                `Comix: dropping rejected cipher material (${rejected.source}, build ${rejected.buildId || "unknown"})`,
+            );
             if (rejected.source === "snapshot") $store.set(SNAPSHOT_REJECTED_KEY, true);
             if (cached && cached.id === rejected.id) {
                 $store.remove(MATERIAL_KEY);
@@ -622,12 +655,10 @@ class Provider {
             if (this.takeCaptureLease(owner)) {
                 try {
                     return cacheMaterial(await this.captureMaterial(credentials));
-                }
-                catch (e) {
+                } catch (e) {
                     $store.set(CAPTURE_FAILURE_KEY, JSON.stringify({ at: Date.now(), message: errorText(e) }));
                     throw e;
-                }
-                finally {
+                } finally {
                     const lease = readStoredJson(CAPTURE_LEASE_KEY);
                     if (lease && lease.owner === owner) $store.remove(CAPTURE_LEASE_KEY);
                 }
@@ -670,8 +701,8 @@ class Provider {
             sboxes: SNAPSHOT.sboxes.map(base64Decode),
             keys: SNAPSHOT.keys.map(base64Decode),
         };
-        const passes = isValidMaterial(material)
-            && SNAPSHOT.selfTest.every((pair) => signRequest(pair[0], material) === pair[1]);
+        const passes =
+            isValidMaterial(material) && SNAPSHOT.selfTest.every((pair) => signRequest(pair[0], material) === pair[1]);
         if (!passes) {
             console.error("Comix: bundled cipher snapshot failed its self-test; ignoring it");
             return null;
@@ -687,25 +718,25 @@ class Provider {
         console.log("Comix: capturing cipher material with Chrome");
         let browser = null;
         try {
-            browser = await ChromeDP.newBrowser({ userAgent: credentials.userAgent, headless: true, timeout: BROWSER_STEP_TIMEOUT_S });
-        }
-        catch (e) {
+            browser = await ChromeDP.newBrowser({
+                userAgent: credentials.userAgent,
+                headless: true,
+                timeout: BROWSER_STEP_TIMEOUT_S,
+            });
+        } catch (e) {
             throw fail(`${MESSAGES.noChrome} (${errorText(e)})`);
         }
 
         try {
             return await this.readMaterialFromPage(browser, credentials);
-        }
-        catch (e) {
+        } catch (e) {
             // Classified failures are already strings. Anything else is Chrome or CDP failing.
             if (typeof e === "string") throw e;
             throw fail(`${MESSAGES.chromeFailed} (${errorText(e)})`);
-        }
-        finally {
+        } finally {
             try {
                 await browser.close();
-            }
-            catch (e) {
+            } catch (e) {
                 // Keep the capture's own outcome; a failed close has nothing useful to add.
             }
         }
@@ -728,15 +759,13 @@ class Provider {
         try {
             await browser.executeCDP("Network.enable", {});
             await browser.executeCDP("Network.setBlockedURLs", { urls: CAPTURE_BLOCKED_URLS });
-        }
-        catch (e) {
+        } catch (e) {
             console.warn(`Comix: could not block third-party requests during capture (${errorText(e)})`);
         }
         await browser.executeCDP("Page.addScriptToEvaluateOnNewDocument", { source: ATOB_HOOK });
         try {
             await browser.navigate(CAPTURE_URL);
-        }
-        catch (e) {
+        } catch (e) {
             console.warn(`Comix: Chrome navigation did not finish cleanly (${errorText(e)}); still polling`);
         }
 
@@ -745,8 +774,7 @@ class Provider {
         while (Date.now() < deadline && challengePolls < CHALLENGE_POLL_LIMIT) {
             try {
                 state = JSON.parse(await browser.evaluate(CAPTURE_STATE));
-            }
-            catch (e) {
+            } catch (e) {
                 // The page may be mid-navigation (Cloudflare redirect); poll again.
             }
             const material = materialFromCaptures(state.captures || []);
@@ -769,7 +797,9 @@ class Provider {
         if (CHALLENGE_TITLE.test(state.title || "")) {
             throw fail(`${MESSAGES.cloudflare} (Chrome was stopped by the challenge page)`);
         }
-        throw fail(`Comix: Chrome loaded comix.to ("${state.title}") but the site never decoded its signing keys. The site changed how it ships them; wait for an extension update.`);
+        throw fail(
+            `Comix: Chrome loaded comix.to ("${state.title}") but the site never decoded its signing keys. The site changed how it ships them; wait for an extension update.`,
+        );
     }
 
     // -----------------------------------------------------------------------------------------
@@ -782,16 +812,19 @@ class Provider {
 
         const value = String(url);
         const marker = "/title/";
-        const slug = value.indexOf(marker) >= 0
-            ? value.slice(value.indexOf(marker) + marker.length)
-            : value.replace(/^\/?title\//, "").replace(/^\/+/, "");
+        const slug =
+            value.indexOf(marker) >= 0
+                ? value.slice(value.indexOf(marker) + marker.length)
+                : value.replace(/^\/?title\//, "").replace(/^\/+/, "");
 
         return slug.split(/[/?#]/)[0] || "";
     }
 
     /** Strips the `<hid>-` prefix from a slug. */
     slugWithoutHash(hashId, slug) {
-        const cleanSlug = String(slug || "").trim().replace(/^\/+/, "");
+        const cleanSlug = String(slug || "")
+            .trim()
+            .replace(/^\/+/, "");
         if (!cleanSlug) return "";
         if (cleanSlug === hashId) return "";
         return cleanSlug.indexOf(`${hashId}-`) === 0 ? cleanSlug.slice(hashId.length + 1) : cleanSlug;
@@ -822,7 +855,12 @@ class Provider {
     /** Returns the numeric chapter id from `<hid>|<slug>|<chapterId>|<number>` or a chapter URL. */
     extractNumericChapterId(chapterId) {
         const parts = String(chapterId || "").split("|");
-        const raw = parts.length >= 3 ? parts[2] : String(chapterId || "").split("/").pop();
+        const raw =
+            parts.length >= 3
+                ? parts[2]
+                : String(chapterId || "")
+                      .split("/")
+                      .pop();
         const match = String(raw || "").match(/^\d+/);
         return match ? match[0] : "";
     }
@@ -885,9 +923,12 @@ class Provider {
         const name = item.name ? String(item.name).trim() : "";
         const group = item.group || item.scanlation_group;
         const isOfficial = item.isOfficial === true || item.isOfficial === 1;
-        const url = typeof item.url === "string" && item.url.indexOf("/title/") >= 0
-            ? (item.url.indexOf("http") === 0 ? item.url : `${this.api}${item.url}`)
-            : `${this.api}/title/${manga.fullSlug}/${chapterId}-chapter-${chapterNumber}`;
+        const url =
+            typeof item.url === "string" && item.url.indexOf("/title/") >= 0
+                ? item.url.indexOf("http") === 0
+                    ? item.url
+                    : `${this.api}${item.url}`
+                : `${this.api}/title/${manga.fullSlug}/${chapterId}-chapter-${chapterNumber}`;
 
         return {
             id: `${manga.hashId}|${manga.slug}|${chapterId}|${chapterNumber}`,
@@ -895,7 +936,7 @@ class Provider {
             title: name ? `Chapter ${chapterNumber}: ${name}` : `Chapter ${chapterNumber}`,
             chapter: chapterNumber,
             index: 0,
-            scanlator: group && group.name ? String(group.name).trim() : (isOfficial ? "Official" : undefined),
+            scanlator: group && group.name ? String(group.name).trim() : isOfficial ? "Official" : undefined,
             language: "en",
             rating: item.votes,
             updatedAt: item.updatedAtFormatted || item.createdAtFormatted || undefined,
@@ -926,7 +967,7 @@ class Provider {
         // requests from their own Seanime server, and is attached to comix.to covers only.
         const credentials = this.readCredentials();
         const coverHeaders = {
-            "Cookie": `cf_clearance=${credentials.cookie}`,
+            Cookie: `cf_clearance=${credentials.cookie}`,
             "User-Agent": credentials.userAgent,
         };
 
@@ -965,12 +1006,14 @@ class Provider {
         if (!manga.hashId) return [];
 
         const path = `/manga/${manga.hashId}/chapters`;
-        const fetchPage = (page) => this.apiGet(path, {
-            limit: CHAPTERS_PER_PAGE,
-            "order[number]": "desc",
-            page,
-        });
-        const itemsOf = (data, page) => requireList(data.result && data.result.items, describeRequest(path, { page }), "result.items");
+        const fetchPage = (page) =>
+            this.apiGet(path, {
+                limit: CHAPTERS_PER_PAGE,
+                "order[number]": "desc",
+                page,
+            });
+        const itemsOf = (data, page) =>
+            requireList(data.result && data.result.items, describeRequest(path, { page }), "result.items");
 
         const first = await fetchPage(1);
         const rawChapters = itemsOf(first, 1).slice();
@@ -981,14 +1024,18 @@ class Provider {
         if (declared > MAX_CHAPTER_PAGES) throw fail(tooManyPages);
         if (lastPageFull && !declared) {
             const meta = JSON.stringify(first.result.meta || first.result.pagination || null);
-            console.warn(`Comix: ${describeRequest(path, { page: 1 })} is full but declares no usable lastPage (${meta.slice(0, 120)}); fetching pages one at a time until a short page`);
+            console.warn(
+                `Comix: ${describeRequest(path, { page: 1 })} is full but declares no usable lastPage (${meta.slice(0, 120)}); fetching pages one at a time until a short page`,
+            );
         }
 
         let page = 1;
         while ((page < declared || lastPageFull) && !sawEmptyPage) {
             if (page >= MAX_CHAPTER_PAGES) throw fail(tooManyPages);
             if (page === declared) {
-                console.warn(`Comix: ${path} page ${declared}, the declared last page, is full; checking for more pages one at a time`);
+                console.warn(
+                    `Comix: ${path} page ${declared}, the declared last page, is full; checking for more pages one at a time`,
+                );
             }
             const batchEnd = page < declared ? Math.min(page + CHAPTER_BATCH_SIZE, declared) : page + 1;
             const pages = [];
@@ -1052,7 +1099,7 @@ class Provider {
                 url: /^https?:\/\//i.test(item.url) ? item.url : `${baseUrl}/${String(item.url).replace(/^\/+/, "")}`,
                 index,
                 headers: {
-                    "Accept": IMAGE_ACCEPT,
+                    Accept: IMAGE_ACCEPT,
                 },
             }));
     }
