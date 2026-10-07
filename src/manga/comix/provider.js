@@ -259,6 +259,13 @@ function installSecurityModule(source, userAgent) {
         };
     };
     const scope = {
+        // Reduce direct access to Seanime APIs. This scope is not a security sandbox:
+        // JavaScript intrinsics still belong to the host realm.
+        $store: undefined,
+        $getUserPreference: undefined,
+        $sleep: undefined,
+        fetch: undefined,
+        ChromeDP: undefined,
         document: {
             cookie: "",
             referrer: "",
@@ -395,11 +402,22 @@ class Provider {
             return session;
         return { cookie: "", userAgent: DEFAULT_USER_AGENT };
     }
-    async send(url, credentials) {
+    async send(url, credentials, extraHeaders) {
         const headers = {
-            "User-Agent": credentials.userAgent,
             Accept: "application/json, text/plain, */*",
         };
+        Object.keys(extraHeaders || {}).forEach((name) => {
+            // Preserve signature headers without allowing the module to replace the
+            // clearance pair or override the destination's Host header.
+            if (!/^(cookie|user-agent|host)$/i.test(name)) {
+                const previous = Object.keys(headers).find(
+                    (key) => key.toLowerCase() === name.toLowerCase(),
+                );
+                if (previous) delete headers[previous];
+                headers[name] = extraHeaders[name];
+            }
+        });
+        headers["User-Agent"] = credentials.userAgent;
         if (credentials.cookie)
             headers.Cookie = `cf_clearance=${credentials.cookie}`;
         return fetch(url, { headers });
@@ -649,11 +667,29 @@ class Provider {
                         `${encodeURIComponent(key)}=${encodeURIComponent(value)}`,
                 )
                 .join("&");
+            const target = new URL(config.url || `${API_URL}${path}`, API_URL);
+            if (
+                target.origin !== SITE_URL ||
+                target.username ||
+                target.password ||
+                !target.pathname.startsWith("/api/v1/")
+            )
+                throw fail(
+                    "Comix: refused an interceptor URL outside the Comix API.",
+                );
+            target.hash = "";
+            const url = target.toString();
+            const separator = url.includes("?")
+                ? /[?&]$/.test(url)
+                    ? ""
+                    : "&"
+                : "?";
             let response;
             try {
                 response = await this.send(
-                    `${API_URL}${path}?${query}`,
+                    query ? `${url}${separator}${query}` : url,
                     credentials,
+                    config.headers,
                 );
             } catch (error) {
                 if (!retryLeft)

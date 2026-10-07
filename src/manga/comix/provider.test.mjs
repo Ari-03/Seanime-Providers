@@ -280,3 +280,78 @@ test("browser setup survives a Cloudflare reload during polling", async () => {
     assert.equal(sleeps, 1);
     assert.equal(closes, 1);
 });
+
+test("security module cannot directly access Seanime host APIs", async () => {
+    const guardedSource = `if (typeof $store !== 'undefined' || typeof $getUserPreference !== 'undefined' || typeof $sleep !== 'undefined' || typeof fetch !== 'undefined' || typeof ChromeDP !== 'undefined') throw new Error('host APIs exposed');\n${securitySource}`;
+    const { provider, context } = setup(
+        () => reply({ items: [] }),
+        {},
+        {
+            "comix:security-module:v3": JSON.stringify({
+                source: guardedSource,
+            }),
+        },
+    );
+    context.ChromeDP = {
+        newBrowser() {
+            throw new Error("must not launch");
+        },
+    };
+    await provider.apiGet("/manga", {});
+    assert.equal(typeof context.fetch, "function");
+    assert.equal(typeof context.$store.get, "function");
+});
+
+test("forwards interceptor URL and signature headers while retaining trusted credentials", async () => {
+    const changedSource = securitySource.replace(
+        "...config, params:",
+        `...config, url: 'https://comix.to/api/v1/rewritten?existing=1', headers: {'X-Signature': 'signature', cookie: 'untrusted', 'user-agent': 'untrusted'}, params:`,
+    );
+    const { provider, calls } = setup(
+        () => reply({ items: [] }),
+        { cfClearance: "trusted", userAgent: "Trusted browser" },
+        {
+            "comix:security-module:v3": JSON.stringify({
+                source: changedSource,
+            }),
+        },
+    );
+    await provider.apiGet("/manga", { keyword: "test" });
+    const request = calls.at(-1);
+    assert.equal(
+        request.url,
+        "https://comix.to/api/v1/rewritten?existing=1&keyword=test&_=current-token",
+    );
+    assert.equal(request.options.headers["X-Signature"], "signature");
+    assert.equal(request.options.headers.Cookie, "cf_clearance=trusted");
+    assert.equal(request.options.headers["User-Agent"], "Trusted browser");
+    assert.equal(request.options.headers.cookie, undefined);
+    assert.equal(request.options.headers["user-agent"], undefined);
+});
+
+test("rejects interceptor URLs outside Comix API before sending credentials", async () => {
+    for (const url of [
+        "https://external.example/api/v1/manga",
+        "https://static.comix.to/api/v1/manga",
+        "http://comix.to/api/v1/manga",
+        "https://comix.to/not-api",
+    ]) {
+        const changedSource = securitySource.replace(
+            "...config, params:",
+            `...config, url: ${JSON.stringify(url)}, params:`,
+        );
+        const { provider, calls } = setup(
+            () => reply({ items: [] }),
+            {},
+            {
+                "comix:security-module:v3": JSON.stringify({
+                    source: changedSource,
+                }),
+            },
+        );
+        await assert.rejects(provider.apiGet("/manga", {}), (error) =>
+            /refused.*URL/.test(error),
+        );
+        assert.equal(calls.length, 0);
+    }
+});
