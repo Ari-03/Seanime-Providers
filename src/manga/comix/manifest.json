@@ -1,9 +1,9 @@
 {
   "id": "comix",
   "name": "Comix",
-  "description": "Comix (comix.to) manga provider for Seanime. Needs the cf_clearance cookie and the matching User-Agent from a browser that opened comix.to. With Chrome or Chromium installed on the Seanime host, it refreshes the site's signing keys on its own.",
+  "description": "Comix (comix.to) manga provider for Seanime. Automatically loads the current signing and response decoding module. If Cloudflare requires clearance, Chrome on the Seanime host captures the cookie and matching User-Agent after you complete its check.",
   "manifestURI": "https://raw.githubusercontent.com/Ari-03/Seanime-Providers/main/src/manga/comix/manifest.json",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "author": "Pal & Ari-03",
   "icon": "https://raw.githubusercontent.com/Ari-03/Seanime-Providers/main/public/comix.png",
   "website": "https://comix.to",
@@ -14,18 +14,18 @@
   "payloadURI": "https://raw.githubusercontent.com/Ari-03/Seanime-Providers/main/src/manga/comix/provider.js",
   "userConfig": {
     "version": 1,
-    "requiresConfig": true,
+    "requiresConfig": false,
     "fields": [
       {
         "type": "text",
         "name": "cfClearance",
-        "label": "cf_clearance cookie. Open comix.to in your browser, then DevTools > Application > Cookies > https://comix.to and copy the cf_clearance value.",
+        "label": "Optional manual cf_clearance cookie for a Seanime server without a display. Leave both fields blank for automatic setup.",
         "default": ""
       },
       {
         "type": "text",
         "name": "userAgent",
-        "label": "User-Agent of that same browser. Run navigator.userAgent in its DevTools console and paste the result. It must match the browser the cookie came from.",
+        "label": "Optional User-Agent from the same browser as the manual cookie. Leave both fields blank for automatic setup.",
         "default": ""
       }
     ]

@@ -2,50 +2,59 @@
 
 Manga provider for [comix.to](https://comix.to).
 
-comix.to sits behind a Cloudflare challenge, signs every API call, and encrypts most responses. The extension handles the signing and decryption itself. It can't get past Cloudflare on its own, so it borrows the clearance cookie your browser already earned.
-
 ## Setup
 
-1. Add the extension in Seanime under `Settings > Extensions` with this manifest URL:
+Add the extension in Seanime under `Settings > Extensions` using this manifest URL:
 
-   ```
-   https://raw.githubusercontent.com/Ari-03/Seanime-Providers/main/src/manga/comix/manifest.json
-   ```
+```text
+https://raw.githubusercontent.com/Ari-03/Seanime-Providers/main/src/manga/comix/manifest.json
+```
 
-2. Open https://comix.to in a normal browser and wait until the site loads. If Cloudflare shows a check, pass it.
-3. Copy the `cf_clearance` cookie. In Chrome, Edge or Brave, open DevTools, go to `Application > Cookies > https://comix.to` and copy the value of `cf_clearance`. In Firefox it is under `Storage > Cookies`.
-4. Copy the User-Agent of the same browser. Run `navigator.userAgent` in the DevTools console and copy the result without the quotes.
-5. Paste both into the extension settings in Seanime.
+Leave the cookie and User-Agent fields blank. Search, chapter lists and pages work without a cookie when Comix permits it.
 
-The cookie and the User-Agent must come from the same browser. Cloudflare ties the cookie to the User-Agent it was issued for and rejects it with any other one. Pasting `cf_clearance=...` with the name in front also works.
+If Cloudflare requires clearance, the extension opens a dedicated Chrome window on the machine running Seanime. Complete any check in that window. The extension reads the clearance cookie and matching User-Agent automatically, stores them together, and closes the window. You have two minutes to complete the check. There is no DevTools or copy/paste step.
 
-Search result covers on `static.comix.to` sit behind the same Cloudflare check, so the extension hands your cookie and User-Agent to Seanime's image proxy for those covers. That puts the cookie in the image-proxy URL your Seanime client requests from your own Seanime server. Covers from other hosts and chapter pages get no cookie.
+Automatic challenge setup requires Chrome or Chromium and a display on the Seanime host. A browser on a different machine cannot complete this flow. Chrome is only needed when a challenge appears.
 
-## Chrome on the Seanime host
+If you already have manual values saved, clear both fields to enable automatic setup. Existing values continue to override automatic setup.
 
-Optional, but it saves you from waiting on extension updates.
+## Servers without a display
 
-The signing keys live in the site's obfuscated JavaScript and change when comix.to ships a new build. The extension bundles the keys for the current build, `tmboun`, so it works without Chrome until the site rotates them.
+The two optional fields retain a manual fallback:
 
-After a rotation the site starts rejecting the old keys. If Google Chrome or Chromium is installed on the machine running Seanime, the extension opens comix.to in headless Chrome with your cookie, reads the new keys while the page decodes them, and carries on. That takes about two seconds. Requests that arrive meanwhile wait for that one capture instead of starting their own Chrome, including the parallel page requests of a chapter list that is still loading. While capturing, Chrome skips images and third-party fonts and analytics. Without Chrome you get an error asking you to install it or wait for an extension update.
+1. Open https://comix.to in your browser and complete its check.
+2. Copy `cf_clearance` from DevTools, under `Application > Cookies` in Chrome or `Storage > Cookies` in Firefox.
+3. Run `navigator.userAgent` in that same browser's console.
+4. Enter both values in the extension settings.
 
-Seanime finds Chrome at `/Applications/Google Chrome.app` or `/Applications/Chromium.app` on macOS, in the default install folders on Windows, and as `chromium` or `google-chrome` on the `PATH` on Linux.
+Cloudflare binds clearance to the browser's User-Agent and may also restrict its use from another IP. If the manual session is rejected, replace both values. Automatic setup always runs on the Seanime host so its browser and API requests use that host's connection.
 
-## Errors
+Covers on Comix hosts use Seanime's image proxy with the current User-Agent and, when present, the clearance cookie. Those headers appear in the image-proxy URL requested from your own Seanime server. Other cover hosts and chapter images receive no clearance cookie.
 
-The extension reports problems in Seanime's error message and logs. It doesn't return an empty list.
+## Automatic updates
 
-- **Cloudflare rejected the request.** The cookie expired or doesn't match the User-Agent. Repeat steps 2 to 5.
-- **comix.to's firewall wants a captcha.** Open comix.to in your browser, solve the check, wait a minute and retry.
-- **Chrome could not start.** The keys rotated and Chrome isn't installed. Install it or wait for an update.
-- **Chrome stopped while capturing.** Chrome crashed or was killed mid-capture. Retry, and check that Chrome runs on the Seanime host.
-- **Could not reach comix.to.** A network failure between Seanime and comix.to that persisted through the automatic retry. Each request to comix.to gets one retry, after a pause of up to 3 seconds, for a network error, HTTP 5xx or HTTP 429. Cloudflare, captcha and token errors are reported straight away instead. Retry once the connection is back.
-- **Returned an error or no list.** comix.to answered, but not with the expected data. Nothing is cached, so retrying is safe; if it persists, the API changed.
-- **Still rejects requests after refreshing.** The site changed how it signs requests. The extension needs an update.
+The provider discovers Comix's current security script from its homepage and main bundle, then uses the script's request and response interceptors. It caches the script in Seanime's extension store and reloads it once if a token is rejected or a response cannot be decoded. Signing keys no longer need a bundled snapshot or Chrome capture.
 
-## Known limitations
+The module runs with private browser shims in Seanime's Goja runtime. A future script that needs new browser APIs or unsupported JavaScript syntax can still require an extension update. Failed requests report an error instead of returning a partial chapter list.
 
-- `cf_clearance` normally lasts about a year, but Cloudflare can revoke it sooner, and a browser update changes your User-Agent. Either one means pasting fresh values. Whether the cookie stops working when your IP changes hasn't been tested.
+Network errors, HTTP 429 and HTTP 5xx receive one retry, with a pause capped at three seconds. A Cloudflare challenge gets one automatic session attempt per request. A successful session is reused until its recorded cookie expiry, and rejection triggers a new setup attempt.
+
+## Verification and maintenance
+
+Run the offline regressions with:
+
+```sh
+bun test src/manga/comix/provider.test.mjs
+```
+
+On 2026-10-07, the real Seanime Goja provider test passed without preferences or Chrome: search, all 171 chapters of `55k2l|thats-the-guy`, and 99 pages of chapter `11442054`. The browser challenge flow has automated tests with a simulated ChromeDP browser; it has not been verified against a live challenge on this host because Chrome is not installed.
+
+A current cover downloaded as a valid JPEG without clearance. A direct download from the chapter-image host reset the connection or timed out from this host, so chapter-image delivery remains unverified. Returning the page URLs does not establish that the image host is reachable.
+
+See [AGENTS.md](./AGENTS.md) for the repair workflow, upstream sources and runtime constraints.
+
+## Limitations
+
 - Only English chapters are listed.
-- comix.to can mark pages as scrambled. On 2026-10-04 none of 3,795 pages across 60 chapters of 30 popular series were, so the extension has no descrambler. If scrambled pages show up, they will look like shuffled tiles.
-- Page images must load without a `Referer` header. The extension routes them through Seanime's image proxy for that reason.
+- Chapter images use Seanime's image proxy without `Referer` or `Origin`, which their hosts reject.
+- There is no page descrambler. If Comix starts returning scrambled pages again, they will need a separate fix.
