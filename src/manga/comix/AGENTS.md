@@ -47,6 +47,7 @@ These hold regardless of what Comix changes.
 - Run `bun test src/manga/comix/provider.test.mjs`. Add tests at the boundary that actually failed.
 - Format and lint touched JS with the repository's tools. If none exist, use Prettier and ESLint's recommended JavaScript rules with Seanime globals declared.
 - Run the provider through Seanime's real Goja manga provider; Node tests can't prove Goja compatibility. Cover search, a chapter list that spans several pages, and chapter pages.
+- Keep coverage for module rotation, encrypted and plain response envelopes, retries, sorting, deduplication, malformed-list errors and shared browser sessions.
 - Never return a partial chapter list when a later page fails.
 - A mocked Chrome doesn't prove Cloudflare accepts a captured session. Say whether real challenge capture was tested.
 - Get an independent review of the final diff and resolve its findings.
